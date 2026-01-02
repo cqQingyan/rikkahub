@@ -130,13 +130,6 @@ fun AssistantDetailPage(id: String) {
                 )
 
                 SettingCard(
-                    icon = Lucide.Wrench,
-                    title = stringResource(R.string.assistant_page_tab_mcp),
-                    description = stringResource(R.string.assistant_detail_mcp_desc),
-                    onClick = { navController.navigate(Screen.AssistantMcp(id)) }
-                )
-
-                SettingCard(
                     icon = Lucide.BookOpen,
                     title = stringResource(R.string.assistant_page_tab_local_tools),
                     description = stringResource(R.string.assistant_detail_local_tools_desc),

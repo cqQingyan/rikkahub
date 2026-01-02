@@ -234,15 +234,6 @@ fun SettingPage(vm: SettingVM = koinViewModel()) {
                 )
             }
 
-            item {
-                SettingItem(
-                    navController = navController,
-                    title = { Text(stringResource(R.string.setting_page_mcp)) },
-                    description = { Text(stringResource(R.string.setting_page_mcp_desc)) },
-                    icon = { Icon(Lucide.Terminal, "MCP") },
-                    link = Screen.SettingMcp
-                )
-            }
 
             stickyHeader {
                 Text(
@@ -302,74 +293,10 @@ fun SettingPage(vm: SettingVM = koinViewModel()) {
             item {
                 SettingItem(
                     navController = navController,
-                    title = { Text(stringResource(R.string.setting_page_about)) },
-                    description = { Text(stringResource(R.string.setting_page_about_desc)) },
-                    icon = { Icon(Lucide.BadgeInfo, "About") },
-                    link = Screen.SettingAbout
-                )
-            }
-
-            item {
-                val context = LocalContext.current
-                SettingItem(
-                    navController = navController,
-                    title = { Text(stringResource(R.string.setting_page_documentation)) },
-                    description = { Text(stringResource(R.string.setting_page_documentation_desc)) },
-                    icon = { Icon(Lucide.Library, stringResource(R.string.setting_page_documentation)) },
-                    onClick = {
-                        context.openUrl("https://docs.rikka-ai.com/docs/basic/get-started")
-                    }
-                )
-            }
-
-            item {
-                SettingItem(
-                    navController = navController,
                     title = { Text(stringResource(R.string.setting_page_request_logs)) },
                     description = { Text(stringResource(R.string.setting_page_request_logs_desc)) },
                     icon = { Icon(Lucide.ScrollText, stringResource(R.string.setting_page_request_logs)) },
                     link = Screen.Log
-                )
-            }
-
-            item {
-                SettingItem(
-                    navController = navController,
-                    title = { Text(stringResource(R.string.setting_page_donate)) },
-                    description = {
-                        Text(stringResource(R.string.setting_page_donate_desc))
-                    },
-                    icon = {
-                        Icon(Lucide.Heart, "Donate")
-                    },
-                    link = Screen.SettingDonate
-                )
-            }
-
-            item {
-                val context = LocalContext.current
-                val shareText = stringResource(R.string.setting_page_share_text)
-                val share = stringResource(R.string.setting_page_share)
-                val noShareApp = stringResource(R.string.setting_page_no_share_app)
-                SettingItem(
-                    navController = navController,
-                    title = { Text(stringResource(R.string.setting_page_share)) },
-                    description = {
-                        Text(stringResource(R.string.setting_page_share_desc))
-                    },
-                    icon = {
-                        Icon(Lucide.Share2, "Share")
-                    },
-                    onClick = {
-                        val intent = Intent(Intent.ACTION_SEND)
-                        intent.type = "text/plain"
-                        intent.putExtra(Intent.EXTRA_TEXT, shareText)
-                        try {
-                            context.startActivity(Intent.createChooser(intent, share))
-                        } catch (e: ActivityNotFoundException) {
-                            Toast.makeText(context, noShareApp, Toast.LENGTH_SHORT).show()
-                        }
-                    }
                 )
             }
         }

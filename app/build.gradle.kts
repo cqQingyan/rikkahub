@@ -268,9 +268,6 @@ dependencies {
     implementation(libs.jlatexmath.font.greek)
     implementation(libs.jlatexmath.font.cyrillic)
 
-    // mcp
-    implementation(libs.modelcontextprotocol.kotlin.sdk)
-
     // modules
     implementation(project(":ai"))
     implementation(project(":document"))

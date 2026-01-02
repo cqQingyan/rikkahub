@@ -52,7 +52,6 @@ import me.rerere.rikkahub.R
 import me.rerere.rikkahub.RouteActivity
 import me.rerere.rikkahub.data.ai.GenerationChunk
 import me.rerere.rikkahub.data.ai.GenerationHandler
-import me.rerere.rikkahub.data.ai.mcp.McpManager
 import me.rerere.rikkahub.data.ai.tools.LocalTools
 import me.rerere.rikkahub.data.ai.transformers.Base64ImageToLocalFileTransformer
 import me.rerere.rikkahub.data.ai.transformers.DocumentAsPromptTransformer
@@ -117,7 +116,6 @@ class ChatService(
     private val templateTransformer: TemplateTransformer,
     private val providerManager: ProviderManager,
     private val localTools: LocalTools,
-    val mcpManager: McpManager,
 ) {
     // 存储每个对话的状态
     private val conversations = ConcurrentHashMap<Uuid, MutableStateFlow<Conversation>>()
@@ -382,7 +380,7 @@ class ChatService(
 
             // memory tool
             if (!model.abilities.contains(ModelAbility.TOOL)) {
-                if (settings.enableWebSearch || mcpManager.getAllAvailableTools().isNotEmpty()) {
+                if (settings.enableWebSearch) {
                     addError(IllegalStateException(context.getString(R.string.tools_warning)))
                 }
             }
@@ -413,18 +411,6 @@ class ChatService(
                         addAll(createSearchTool(settings))
                     }
                     addAll(localTools.getTools(settings.getCurrentAssistant().localTools))
-                    mcpManager.getAllAvailableTools().forEach { tool ->
-                        add(
-                            Tool(
-                                name = tool.name,
-                                description = tool.description ?: "",
-                                parameters = { tool.inputSchema },
-                                execute = {
-                                    mcpManager.callTool(tool.name, it.jsonObject)
-                                },
-                            )
-                        )
-                    }
                 },
                 truncateIndex = conversation.truncateIndex,
             ).onCompletion {

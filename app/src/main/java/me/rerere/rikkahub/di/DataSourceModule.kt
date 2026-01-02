@@ -15,12 +15,10 @@ import me.rerere.rikkahub.data.ai.transformers.AssistantTemplateLoader
 import me.rerere.rikkahub.data.ai.GenerationHandler
 import me.rerere.rikkahub.data.ai.transformers.TemplateTransformer
 import me.rerere.rikkahub.data.api.RikkaHubAPI
-import me.rerere.rikkahub.data.api.SponsorAPI
 import me.rerere.rikkahub.data.datastore.SettingsStore
 import me.rerere.rikkahub.data.db.AppDatabase
 import me.rerere.rikkahub.data.db.migrations.Migration_6_7
 import me.rerere.rikkahub.data.db.migrations.Migration_11_12
-import me.rerere.rikkahub.data.ai.mcp.McpManager
 import me.rerere.rikkahub.data.sync.WebdavSync
 import me.rerere.rikkahub.data.sync.S3Sync
 import okhttp3.MediaType.Companion.toMediaType
@@ -73,8 +71,6 @@ val dataSourceModule = module {
         get<AppDatabase>().messageNodeDao()
     }
 
-    single { McpManager(settingsStore = get(), appScope = get()) }
-
     single {
         GenerationHandler(
             context = get(),
@@ -112,39 +108,11 @@ val dataSourceModule = module {
     }
 
     single {
-        SponsorAPI.create(get())
-    }
-
-    single {
         ProviderManager(client = get())
     }
 
     single {
         WebdavSync(settingsStore = get(), json = get(), context = get())
-    }
-
-    single<HttpClient> {
-        HttpClient(OkHttp) {
-            engine {
-                config {
-                    connectTimeout(20, TimeUnit.SECONDS)
-                    readTimeout(10, TimeUnit.MINUTES)
-                    writeTimeout(120, TimeUnit.SECONDS)
-                    followSslRedirects(true)
-                    followRedirects(true)
-                    retryOnConnectionFailure(true)
-                }
-            }
-        }
-    }
-
-    single {
-        S3Sync(
-            settingsStore = get(),
-            json = get(),
-            context = get(),
-            httpClient = get()
-        )
     }
 
     single<Retrofit> {
