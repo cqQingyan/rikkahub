@@ -115,7 +115,6 @@ import me.rerere.ai.provider.ProviderSetting
 import me.rerere.ai.ui.UIMessagePart
 import me.rerere.common.android.appTempFolder
 import me.rerere.rikkahub.R
-import me.rerere.rikkahub.data.ai.mcp.McpManager
 import me.rerere.rikkahub.data.datastore.Settings
 import me.rerere.rikkahub.data.datastore.findProvider
 import me.rerere.rikkahub.data.datastore.getCurrentAssistant
@@ -149,7 +148,6 @@ fun ChatInput(
     state: ChatInputState,
     conversation: Conversation,
     settings: Settings,
-    mcpManager: McpManager,
     enableSearch: Boolean,
     onToggleSearch: (Boolean) -> Unit,
     modifier: Modifier = Modifier,
@@ -273,17 +271,6 @@ fun ChatInput(
                         )
                     }
 
-                    // MCP
-                    if (settings.mcpServers.isNotEmpty()) {
-                        McpPickerButton(
-                            assistant = assistant,
-                            servers = settings.mcpServers,
-                            mcpManager = mcpManager,
-                            onUpdateAssistant = {
-                                onUpdateAssistant(it)
-                            },
-                        )
-                    }
                 }
 
                 // Insert files

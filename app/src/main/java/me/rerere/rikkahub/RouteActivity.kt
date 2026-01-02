@@ -23,10 +23,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -67,7 +65,6 @@ import me.rerere.rikkahub.ui.pages.assistant.detail.AssistantBasicPage
 import me.rerere.rikkahub.ui.pages.assistant.detail.AssistantDetailPage
 import me.rerere.rikkahub.ui.pages.assistant.detail.AssistantInjectionsPage
 import me.rerere.rikkahub.ui.pages.assistant.detail.AssistantLocalToolPage
-import me.rerere.rikkahub.ui.pages.assistant.detail.AssistantMcpPage
 import me.rerere.rikkahub.ui.pages.assistant.detail.AssistantMemoryPage
 import me.rerere.rikkahub.ui.pages.assistant.detail.AssistantPromptPage
 import me.rerere.rikkahub.ui.pages.assistant.detail.AssistantRequestPage
@@ -80,17 +77,13 @@ import me.rerere.rikkahub.ui.pages.imggen.ImageGenPage
 import me.rerere.rikkahub.ui.pages.log.LogPage
 import me.rerere.rikkahub.ui.pages.menu.MenuPage
 import me.rerere.rikkahub.ui.pages.prompts.PromptPage
-import me.rerere.rikkahub.ui.pages.setting.SettingAboutPage
 import me.rerere.rikkahub.ui.pages.setting.SettingDisplayPage
-import me.rerere.rikkahub.ui.pages.setting.SettingDonatePage
-import me.rerere.rikkahub.ui.pages.setting.SettingMcpPage
 import me.rerere.rikkahub.ui.pages.setting.SettingModelPage
 import me.rerere.rikkahub.ui.pages.setting.SettingPage
 import me.rerere.rikkahub.ui.pages.setting.SettingProviderDetailPage
 import me.rerere.rikkahub.ui.pages.setting.SettingProviderPage
 import me.rerere.rikkahub.ui.pages.setting.SettingSearchPage
 import me.rerere.rikkahub.ui.pages.setting.SettingTTSPage
-import me.rerere.rikkahub.ui.pages.share.handler.ShareHandlerPage
 import me.rerere.rikkahub.ui.pages.translator.TranslatorPage
 import me.rerere.rikkahub.ui.pages.webview.WebViewPage
 import me.rerere.rikkahub.ui.theme.LocalDarkMode
@@ -115,7 +108,6 @@ class RouteActivity : ComponentActivity() {
         setContent {
             val navStack = rememberNavController()
             this.navStack = navStack
-            ShareHandler(navStack)
             RikkahubTheme {
                 setSingletonImageLoaderFactory { context ->
                     ImageLoader.Builder(context)
@@ -134,33 +126,6 @@ class RouteActivity : ComponentActivity() {
     private fun disableNavigationBarContrast() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             window.isNavigationBarContrastEnforced = false
-        }
-    }
-
-    @Composable
-    private fun ShareHandler(navBackStack: NavHostController) {
-        val shareIntent = remember {
-            Intent().apply {
-                action = intent?.action
-                putExtra(Intent.EXTRA_TEXT, intent?.getStringExtra(Intent.EXTRA_TEXT))
-                putExtra(Intent.EXTRA_STREAM, intent?.getStringExtra(Intent.EXTRA_STREAM))
-                putExtra(Intent.EXTRA_PROCESS_TEXT, intent?.getCharSequenceExtra(Intent.EXTRA_PROCESS_TEXT))
-            }
-        }
-
-        LaunchedEffect(navBackStack) {
-            when (shareIntent.action) {
-                Intent.ACTION_SEND -> {
-                    val text = shareIntent.getStringExtra(Intent.EXTRA_TEXT) ?: ""
-                    val imageUri = shareIntent.getStringExtra(Intent.EXTRA_STREAM)
-                    navBackStack.navigate(Screen.ShareHandler(text, imageUri))
-                }
-
-                Intent.ACTION_PROCESS_TEXT -> {
-                    val text = shareIntent.getCharSequenceExtra(Intent.EXTRA_PROCESS_TEXT)?.toString() ?: ""
-                    navBackStack.navigate(Screen.ShareHandler(text, null))
-                }
-            }
         }
     }
 
@@ -230,14 +195,6 @@ class RouteActivity : ComponentActivity() {
                         )
                     }
 
-                    composable<Screen.ShareHandler> { backStackEntry ->
-                        val route = backStackEntry.toRoute<Screen.ShareHandler>()
-                        ShareHandlerPage(
-                            text = route.text,
-                            image = route.streamUri
-                        )
-                    }
-
                     composable<Screen.History> {
                         HistoryPage()
                     }
@@ -269,11 +226,6 @@ class RouteActivity : ComponentActivity() {
                     composable<Screen.AssistantRequest> { backStackEntry ->
                         val route = backStackEntry.toRoute<Screen.AssistantRequest>()
                         AssistantRequestPage(route.id)
-                    }
-
-                    composable<Screen.AssistantMcp> { backStackEntry ->
-                        val route = backStackEntry.toRoute<Screen.AssistantMcp>()
-                        AssistantMcpPage(route.id)
                     }
 
                     composable<Screen.AssistantLocalTool> { backStackEntry ->
@@ -329,24 +281,12 @@ class RouteActivity : ComponentActivity() {
                         SettingModelPage()
                     }
 
-                    composable<Screen.SettingAbout> {
-                        SettingAboutPage()
-                    }
-
                     composable<Screen.SettingSearch> {
                         SettingSearchPage()
                     }
 
                     composable<Screen.SettingTTS> {
                         SettingTTSPage()
-                    }
-
-                    composable<Screen.SettingMcp> {
-                        SettingMcpPage()
-                    }
-
-                    composable<Screen.SettingDonate> {
-                        SettingDonatePage()
                     }
 
                     composable<Screen.Developer> {
@@ -417,9 +357,6 @@ sealed interface Screen {
     data class Chat(val id: String, val text: String? = null, val files: List<String> = emptyList()) : Screen
 
     @Serializable
-    data class ShareHandler(val text: String, val streamUri: String? = null) : Screen
-
-    @Serializable
     data object History : Screen
 
     @Serializable
@@ -439,9 +376,6 @@ sealed interface Screen {
 
     @Serializable
     data class AssistantRequest(val id: String) : Screen
-
-    @Serializable
-    data class AssistantMcp(val id: String) : Screen
 
     @Serializable
     data class AssistantLocalTool(val id: String) : Screen
@@ -480,19 +414,10 @@ sealed interface Screen {
     data object SettingModels : Screen
 
     @Serializable
-    data object SettingAbout : Screen
-
-    @Serializable
     data object SettingSearch : Screen
 
     @Serializable
     data object SettingTTS : Screen
-
-    @Serializable
-    data object SettingMcp : Screen
-
-    @Serializable
-    data object SettingDonate : Screen
 
     @Serializable
     data object Developer : Screen

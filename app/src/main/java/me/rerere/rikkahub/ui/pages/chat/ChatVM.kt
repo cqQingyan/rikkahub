@@ -207,26 +207,10 @@ class ChatVM(
     // 生成完成
     val generationDoneFlow: SharedFlow<Uuid> = chatService.generationDoneFlow
 
-    // MCP管理器
-    val mcpManager = chatService.mcpManager
-
     // 更新设置
     fun updateSettings(newSettings: Settings) {
         viewModelScope.launch {
-            val oldSettings = settings.value
-            // 检查用户头像是否有变化，如果有则删除旧头像
-            checkUserAvatarDelete(oldSettings, newSettings)
             settingsStore.update(newSettings)
-        }
-    }
-
-    // 检查用户头像删除
-    private fun checkUserAvatarDelete(oldSettings: Settings, newSettings: Settings) {
-        val oldAvatar = oldSettings.displaySetting.userAvatar
-        val newAvatar = newSettings.displaySetting.userAvatar
-
-        if (oldAvatar is Avatar.Image && oldAvatar != newAvatar) {
-            context.deleteChatFiles(listOf(oldAvatar.url.toUri()))
         }
     }
 
