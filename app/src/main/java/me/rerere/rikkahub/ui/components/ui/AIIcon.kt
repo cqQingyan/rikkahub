@@ -133,14 +133,7 @@ private fun computeAIIconByName(name: String): String? {
         PATTERN_LING.containsMatchIn(lowerName) -> "ling.png"
         PATTERN_MIMO.containsMatchIn(lowerName) -> "mimo.jpeg"
 
-        PATTERN_SEARCH_LINKUP.containsMatchIn(lowerName) -> "linkup.png"
         PATTERN_SEARCH_BING.containsMatchIn(lowerName) -> "bing.png"
-        PATTERN_SEARCH_TAVILY.containsMatchIn(lowerName) -> "tavily.png"
-        PATTERN_SEARCH_EXA.containsMatchIn(lowerName) -> "exa.png"
-        PATTERN_SEARCH_BRAVE.containsMatchIn(lowerName) -> "brave.svg"
-        PATTERN_SEARCH_METASO.containsMatchIn(lowerName) -> "metaso.svg"
-        PATTERN_SEARCH_FIRECRAWL.containsMatchIn(lowerName) -> "firecrawl.svg"
-        PATTERN_SEARCH_JINA.containsMatchIn(lowerName) -> "jina.svg"
 
         else -> null
     }
@@ -195,14 +188,7 @@ private val PATTERN_TOKENPONY = Regex("tokenpony|小马算力")
 private val PATTERN_LING = Regex("ling|ring|百灵")
 private val PATTERN_MIMO = Regex("mimo|xiaomi|小米")
 
-private val PATTERN_SEARCH_LINKUP = Regex("linkup")
 private val PATTERN_SEARCH_BING = Regex("bing")
-private val PATTERN_SEARCH_TAVILY = Regex("tavily")
-private val PATTERN_SEARCH_EXA = Regex("exa")
-private val PATTERN_SEARCH_BRAVE = Regex("brave")
-private val PATTERN_SEARCH_METASO = Regex("metaso|秘塔")
-private val PATTERN_SEARCH_FIRECRAWL = Regex("firecrawl")
-private val PATTERN_SEARCH_JINA = Regex("jina")
 
 @Composable
 fun SiliconFlowPowerByIcon(modifier: Modifier = Modifier) {

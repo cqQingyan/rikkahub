@@ -49,10 +49,7 @@ fun TTSProviderConfigure(
                 OutlinedTextField(
                     value = when (setting) {
                         is TTSProviderSetting.OpenAI -> "OpenAI"
-                        is TTSProviderSetting.Gemini -> "Gemini"
-                        is TTSProviderSetting.SystemTTS -> "System TTS"
                         is TTSProviderSetting.MiniMax -> "MiniMax"
-                        is TTSProviderSetting.Qwen -> "Qwen"
                     },
                     onValueChange = {},
                     readOnly = true,
@@ -73,10 +70,7 @@ fun TTSProviderConfigure(
                                 Text(
                                     when (providerClass) {
                                         TTSProviderSetting.OpenAI::class -> "OpenAI"
-                                        TTSProviderSetting.Gemini::class -> "Gemini"
-                                        TTSProviderSetting.SystemTTS::class -> "System TTS"
                                         TTSProviderSetting.MiniMax::class -> "MiniMax"
-                                        TTSProviderSetting.Qwen::class -> "Qwen"
                                         else -> providerClass.simpleName ?: "Unknown"
                                     }
                                 )
@@ -89,24 +83,9 @@ fun TTSProviderConfigure(
                                         name = "OpenAI TTS"
                                     )
 
-                                    TTSProviderSetting.Gemini::class -> TTSProviderSetting.Gemini(
-                                        id = setting.id,
-                                        name = "Gemini TTS"
-                                    )
-
-                                    TTSProviderSetting.SystemTTS::class -> TTSProviderSetting.SystemTTS(
-                                        id = setting.id,
-                                        name = "System TTS"
-                                    )
-
                                     TTSProviderSetting.MiniMax::class -> TTSProviderSetting.MiniMax(
                                         id = setting.id,
                                         name = "MiniMax TTS"
-                                    )
-
-                                    TTSProviderSetting.Qwen::class -> TTSProviderSetting.Qwen(
-                                        id = setting.id,
-                                        name = "Qwen TTS"
                                     )
 
                                     else -> setting
@@ -137,10 +116,7 @@ fun TTSProviderConfigure(
         // Provider-specific fields
         when (setting) {
             is TTSProviderSetting.OpenAI -> OpenAITTSConfiguration(setting, onValueChange)
-            is TTSProviderSetting.Gemini -> GeminiTTSConfiguration(setting, onValueChange)
             is TTSProviderSetting.MiniMax -> MiniMaxTTSConfiguration(setting, onValueChange)
-            is TTSProviderSetting.SystemTTS -> SystemTTSConfiguration(setting, onValueChange)
-            is TTSProviderSetting.Qwen -> QwenTTSConfiguration(setting, onValueChange)
         }
     }
 }
@@ -398,248 +374,3 @@ private fun MiniMaxTTSConfiguration(
     }
 }
 
-@Composable
-private fun GeminiTTSConfiguration(
-    setting: TTSProviderSetting.Gemini,
-    onValueChange: (TTSProviderSetting) -> Unit
-) {
-    // API Key
-    FormItem(
-        label = { Text(stringResource(R.string.setting_tts_page_api_key)) },
-        description = { Text(stringResource(R.string.setting_tts_page_api_key_description)) }
-    ) {
-        OutlinedTextField(
-            value = setting.apiKey,
-            onValueChange = { newApiKey ->
-                onValueChange(setting.copy(apiKey = newApiKey))
-            },
-            modifier = Modifier.fillMaxWidth(),
-            placeholder = { Text(stringResource(R.string.setting_tts_page_api_key_placeholder_gemini)) },
-        )
-    }
-
-    // Base URL
-    FormItem(
-        label = { Text(stringResource(R.string.setting_tts_page_base_url)) },
-        description = { Text(stringResource(R.string.setting_tts_page_base_url_description)) }
-    ) {
-        OutlinedTextField(
-            value = setting.baseUrl,
-            onValueChange = { newBaseUrl ->
-                onValueChange(setting.copy(baseUrl = newBaseUrl))
-            },
-            modifier = Modifier.fillMaxWidth(),
-            placeholder = { Text(stringResource(R.string.setting_tts_page_base_url_placeholder)) }
-        )
-    }
-
-    // Model
-    FormItem(
-        label = { Text(stringResource(R.string.setting_tts_page_model)) },
-        description = { Text(stringResource(R.string.setting_tts_page_model_description)) }
-    ) {
-        OutlinedTextField(
-            value = setting.model,
-            onValueChange = { newModel ->
-                onValueChange(setting.copy(model = newModel))
-            },
-            modifier = Modifier.fillMaxWidth(),
-            placeholder = { Text(stringResource(R.string.setting_tts_page_model_placeholder_gemini)) }
-        )
-    }
-
-    // Voice Name
-    FormItem(
-        label = { Text(stringResource(R.string.setting_tts_page_voice_name)) },
-        description = { Text(stringResource(R.string.setting_tts_page_voice_name_description)) }
-    ) {
-        OutlinedTextField(
-            value = setting.voiceName,
-            onValueChange = { newVoiceName ->
-                onValueChange(setting.copy(voiceName = newVoiceName))
-            },
-            modifier = Modifier.fillMaxWidth(),
-            placeholder = { Text(stringResource(R.string.setting_tts_page_voice_name_placeholder)) }
-        )
-    }
-}
-
-@Composable
-private fun SystemTTSConfiguration(
-    setting: TTSProviderSetting.SystemTTS,
-    onValueChange: (TTSProviderSetting) -> Unit
-) {
-    // Speech Rate
-    FormItem(
-        label = { Text(stringResource(R.string.setting_tts_page_speech_rate)) },
-        description = { Text(stringResource(R.string.setting_tts_page_speech_rate_description)) }
-    ) {
-        OutlinedNumberInput(
-            value = setting.speechRate,
-            onValueChange = { newRate ->
-                if (newRate in 0.1f..3.0f) {
-                    onValueChange(setting.copy(speechRate = newRate))
-                }
-            },
-            modifier = Modifier.fillMaxWidth(),
-            label = stringResource(R.string.setting_tts_page_speech_rate)
-        )
-    }
-
-    // Pitch
-    FormItem(
-        label = { Text(stringResource(R.string.setting_tts_page_pitch)) },
-        description = { Text(stringResource(R.string.setting_tts_page_pitch_description)) }
-    ) {
-        OutlinedNumberInput(
-            value = setting.pitch,
-            onValueChange = { newPitch ->
-                if (newPitch in 0.1f..2.0f) {
-                    onValueChange(setting.copy(pitch = newPitch))
-                }
-            },
-            modifier = Modifier.fillMaxWidth(),
-            label = stringResource(R.string.setting_tts_page_pitch)
-        )
-    }
-}
-
-@Composable
-private fun QwenTTSConfiguration(
-    setting: TTSProviderSetting.Qwen,
-    onValueChange: (TTSProviderSetting) -> Unit
-) {
-    // API Key
-    FormItem(
-        label = { Text(stringResource(R.string.setting_tts_page_api_key)) },
-        description = { Text(stringResource(R.string.setting_tts_page_api_key_description)) }
-    ) {
-        OutlinedTextField(
-            value = setting.apiKey,
-            onValueChange = { newApiKey ->
-                onValueChange(setting.copy(apiKey = newApiKey))
-            },
-            modifier = Modifier.fillMaxWidth(),
-            placeholder = { Text("sk-xxx") },
-        )
-    }
-
-    // Base URL
-    FormItem(
-        label = { Text(stringResource(R.string.setting_tts_page_base_url)) },
-        description = { Text(stringResource(R.string.setting_tts_page_base_url_description)) }
-    ) {
-        OutlinedTextField(
-            value = setting.baseUrl,
-            onValueChange = { newBaseUrl ->
-                onValueChange(setting.copy(baseUrl = newBaseUrl))
-            },
-            modifier = Modifier.fillMaxWidth(),
-            placeholder = { Text(stringResource(R.string.setting_tts_page_base_url_placeholder)) }
-        )
-    }
-
-    // Model
-    FormItem(
-        label = { Text(stringResource(R.string.setting_tts_page_model)) },
-        description = { Text(stringResource(R.string.setting_tts_page_model_description)) }
-    ) {
-        OutlinedTextField(
-            value = setting.model,
-            onValueChange = { newModel ->
-                onValueChange(setting.copy(model = newModel))
-            },
-            modifier = Modifier.fillMaxWidth(),
-            placeholder = { Text("qwen3-tts-flash") }
-        )
-    }
-
-    // Voice
-    var voiceExpanded by remember { mutableStateOf(false) }
-    val voices = listOf(
-        "Cherry", "Serene", "Ethan", "Chelsie",
-        "Momo", "Vivian", "Moon", "Maia", "Kai",
-        "Nofish", "Bella", "Jennifer", "Ryan",
-        "Katerina", "Aiden", "Eldric Sage", "Mia",
-        "Mochi", "Bellona", "Vincent", "Bunny",
-        "Neil", "Elias", "Arthur", "Nini"
-    )
-
-    FormItem(
-        label = { Text(stringResource(R.string.setting_tts_page_voice)) },
-        description = { Text(stringResource(R.string.setting_tts_page_voice_description)) }
-    ) {
-        ExposedDropdownMenuBox(
-            expanded = voiceExpanded,
-            onExpandedChange = { voiceExpanded = !voiceExpanded }
-        ) {
-            OutlinedTextField(
-                value = setting.voice,
-                onValueChange = { newVoice ->
-                    onValueChange(setting.copy(voice = newVoice))
-                },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .menuAnchor(MenuAnchorType.PrimaryEditable),
-                trailingIcon = {
-                    ExposedDropdownMenuDefaults.TrailingIcon(expanded = voiceExpanded)
-                }
-            )
-            ExposedDropdownMenu(
-                expanded = voiceExpanded,
-                onDismissRequest = { voiceExpanded = false }
-            ) {
-                voices.forEach { voice ->
-                    DropdownMenuItem(
-                        text = { Text(voice) },
-                        onClick = {
-                            voiceExpanded = false
-                            onValueChange(setting.copy(voice = voice))
-                        }
-                    )
-                }
-            }
-        }
-    }
-
-    // Language Type
-    var languageExpanded by remember { mutableStateOf(false) }
-    val languageTypes = listOf("Auto", "Chinese", "English", "Japanese", "Korean")
-
-    FormItem(
-        label = { Text("Language Type") },
-        description = { Text("Language type for TTS synthesis") }
-    ) {
-        ExposedDropdownMenuBox(
-            expanded = languageExpanded,
-            onExpandedChange = { languageExpanded = !languageExpanded }
-        ) {
-            OutlinedTextField(
-                value = setting.languageType,
-                onValueChange = { newLanguageType ->
-                    onValueChange(setting.copy(languageType = newLanguageType))
-                },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .menuAnchor(MenuAnchorType.PrimaryEditable),
-                trailingIcon = {
-                    ExposedDropdownMenuDefaults.TrailingIcon(expanded = languageExpanded)
-                }
-            )
-            ExposedDropdownMenu(
-                expanded = languageExpanded,
-                onDismissRequest = { languageExpanded = false }
-            ) {
-                languageTypes.forEach { languageType ->
-                    DropdownMenuItem(
-                        text = { Text(languageType) },
-                        onClick = {
-                            languageExpanded = false
-                            onValueChange(setting.copy(languageType = languageType))
-                        }
-                    )
-                }
-            }
-        }
-    }
-}

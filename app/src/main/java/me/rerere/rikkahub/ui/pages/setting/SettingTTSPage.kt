@@ -56,7 +56,6 @@ import com.composables.icons.lucide.Settings2
 import com.composables.icons.lucide.Trash2
 import com.composables.icons.lucide.Volume2
 import me.rerere.rikkahub.R
-import me.rerere.rikkahub.data.datastore.DEFAULT_SYSTEM_TTS_ID
 import me.rerere.rikkahub.ui.components.nav.BackButton
 import me.rerere.rikkahub.ui.components.ui.AutoAIIcon
 import me.rerere.rikkahub.ui.components.ui.Tag
@@ -69,6 +68,7 @@ import me.rerere.tts.provider.TTSProviderSetting
 import org.koin.androidx.compose.koinViewModel
 import sh.calvin.reorderable.ReorderableItem
 import sh.calvin.reorderable.rememberReorderableLazyListState
+import kotlin.uuid.Uuid
 
 @Composable
 fun SettingTTSPage(vm: SettingVM = koinViewModel()) {
@@ -153,7 +153,7 @@ fun SettingTTSPage(vm: SettingVM = koinViewModel()) {
                         onDelete = {
                             val newProviders = settings.ttsProviders - provider
                             val newSelectedId =
-                                if (settings.selectedTTSProviderId == provider.id) DEFAULT_SYSTEM_TTS_ID else settings.selectedTTSProviderId
+                                if (settings.selectedTTSProviderId == provider.id) Uuid.random() else settings.selectedTTSProviderId
                             vm.updateSettings(
                                 settings.copy(
                                     ttsProviders = newProviders,
@@ -359,10 +359,7 @@ private fun TTSProviderItem(
                     Text(
                         text = when (provider) {
                             is TTSProviderSetting.OpenAI -> stringResource(R.string.setting_tts_page_provider_openai)
-                            is TTSProviderSetting.Gemini -> stringResource(R.string.setting_tts_page_provider_gemini)
                             is TTSProviderSetting.MiniMax -> "MiniMax"
-                            is TTSProviderSetting.SystemTTS -> stringResource(R.string.setting_tts_page_provider_system)
-                            is TTSProviderSetting.Qwen -> "Qwen"
                         },
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -439,8 +436,7 @@ private fun TTSProviderItem(
                             },
                             leadingIcon = {
                                 Icon(Lucide.Trash2, contentDescription = null)
-                            },
-                            enabled = provider.id != DEFAULT_SYSTEM_TTS_ID
+                            }
                         )
                     }
                 }
