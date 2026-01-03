@@ -41,6 +41,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
@@ -313,10 +314,10 @@ private fun MessagePartsBlock(
                 Surface(
                     modifier = Modifier
                         .animateContentSize(),
-                    shape = MaterialTheme.shapes.large,
-                    color = MaterialTheme.colorScheme.secondaryContainer,
+                    shape = RoundedCornerShape(24.dp),
+                    color = MaterialTheme.colorScheme.primaryContainer,
                 ) {
-                    Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
+                    Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp)) {
                         MarkdownBlock(
                             content = part.text.replaceRegexes(
                                 assistant = assistant,
@@ -330,18 +331,22 @@ private fun MessagePartsBlock(
                     }
                 }
             } else {
-                // Assistant message - no card background
-                MarkdownBlock(
-                    content = part.text.replaceRegexes(
-                        assistant = assistant,
-                        scope = AssistantAffectScope.ASSISTANT,
-                        visual = true,
-                    ),
-                    onClickCitation = { id ->
-                        handleClickCitation(id)
-                    },
-                    modifier = Modifier.animateContentSize()
-                )
+                Surface(
+                    modifier = Modifier.animateContentSize(),
+                    color = Color.Transparent,
+                ) {
+                    // Assistant message - no card background
+                    MarkdownBlock(
+                        content = part.text.replaceRegexes(
+                            assistant = assistant,
+                            scope = AssistantAffectScope.ASSISTANT,
+                            visual = true,
+                        ),
+                        onClickCitation = { id ->
+                            handleClickCitation(id)
+                        },
+                    )
+                }
             }
         }
     }

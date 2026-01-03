@@ -9,6 +9,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
@@ -17,6 +18,7 @@ import coil3.compose.AsyncImage
 import coil3.request.ImageRequest
 import coil3.svg.css
 import me.rerere.rikkahub.R
+import me.rerere.rikkahub.ui.hooks.rememberAvatarBreathing
 import me.rerere.rikkahub.ui.hooks.rememberAvatarShape
 import me.rerere.rikkahub.ui.theme.LocalDarkMode
 import me.rerere.rikkahub.utils.toCssHex
@@ -43,8 +45,11 @@ private fun AIIcon(
             )
             .build()
     }
+    val breathingScale = rememberAvatarBreathing(loading)
     Surface(
-        modifier = modifier.size(24.dp),
+        modifier = modifier
+            .size(24.dp)
+            .scale(breathingScale),
         shape = rememberAvatarShape(loading),
         color = color,
     ) {
