@@ -214,9 +214,9 @@ fun ChatInput(
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp, vertical = 8.dp),
                 shape = CircleShape, // Floating Pill shape
-                tonalElevation = 4.dp,
-                shadowElevation = 4.dp,
-                color = MaterialTheme.colorScheme.surface
+                tonalElevation = 0.dp,
+                shadowElevation = 0.dp,
+                color = MaterialTheme.colorScheme.surfaceVariant
             ) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,

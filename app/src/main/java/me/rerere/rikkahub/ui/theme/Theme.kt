@@ -90,6 +90,7 @@ fun RikkahubTheme(
         MaterialTheme(
             colorScheme = colorSchemeConverted,
             typography = Typography,
+            shapes = Shapes,
             content = content
         )
     }
