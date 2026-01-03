@@ -54,15 +54,6 @@ class HistoryVM(
         }
     }
 
-    fun togglePinStatus(conversationId: Uuid) {
-        viewModelScope.launch {
-            conversationRepo.togglePinStatus(conversationId)
-        }
-    }
-
-    fun getPinnedConversations(): Flow<List<Conversation>> =
-        conversationRepo.getPinnedConversations()
-
     fun restoreConversation(conversation: Conversation) {
         viewModelScope.launch {
             conversationRepo.insertConversation(conversation)

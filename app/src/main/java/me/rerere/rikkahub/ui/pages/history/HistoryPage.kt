@@ -50,8 +50,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.composables.icons.lucide.Lucide
-import com.composables.icons.lucide.Pin
-import com.composables.icons.lucide.PinOff
 import com.composables.icons.lucide.Search
 import com.composables.icons.lucide.Trash2
 import com.composables.icons.lucide.X
@@ -161,7 +159,6 @@ fun HistoryPage(vm: HistoryVM = koinViewModel()) {
                             }
                         }
                     },
-                    onTogglePin = { vm.togglePinStatus(conversation.id) },
                     modifier = Modifier
                         .fillMaxWidth()
                         .animateItem()
@@ -238,7 +235,6 @@ private fun SwipeableConversationItem(
     conversation: Conversation,
     modifier: Modifier = Modifier,
     onDelete: () -> Unit = {},
-    onTogglePin: () -> Unit = {},
     onClick: () -> Unit = {},
 ) {
     val positionThreshold = SwipeToDismissBoxDefaults.positionalThreshold
@@ -284,7 +280,6 @@ private fun SwipeableConversationItem(
     ) {
         ConversationItem(
             conversation = conversation,
-            onTogglePin = onTogglePin,
             onClick = onClick
         )
     }
@@ -294,7 +289,6 @@ private fun SwipeableConversationItem(
 private fun ConversationItem(
     conversation: Conversation,
     modifier: Modifier = Modifier,
-    onTogglePin: () -> Unit = {},
     onClick: () -> Unit = {},
 ) {
     Surface(
@@ -309,14 +303,6 @@ private fun ConversationItem(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(4.dp),
                 ) {
-                    if (conversation.isPinned) {
-                        Icon(
-                            imageVector = Lucide.Pin,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(16.dp),
-                        )
-                    }
                     Text(
                         text = conversation.title.ifBlank { stringResource(R.string.history_page_new_conversation) }
                             .trim(),
@@ -328,18 +314,6 @@ private fun ConversationItem(
             },
             supportingContent = {
                 Text(conversation.createAt.toLocalDateTime())
-            },
-            trailingContent = {
-                IconButton(
-                    onClick = onTogglePin
-                ) {
-                    Icon(
-                        if (conversation.isPinned) Lucide.PinOff else Lucide.Pin,
-                        contentDescription = if (conversation.isPinned) stringResource(R.string.history_page_unpin) else stringResource(
-                            R.string.history_page_pin
-                        )
-                    )
-                }
             }
         )
     }

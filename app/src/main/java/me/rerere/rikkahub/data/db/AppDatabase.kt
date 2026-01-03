@@ -14,12 +14,13 @@ import me.rerere.rikkahub.data.db.entity.ConversationEntity
 import me.rerere.rikkahub.data.db.entity.GenMediaEntity
 import me.rerere.rikkahub.data.db.entity.MemoryEntity
 import me.rerere.rikkahub.data.db.entity.MessageNodeEntity
+import me.rerere.rikkahub.data.db.migrations.Migration_12_13
 import me.rerere.rikkahub.data.db.migrations.Migration_8_9
 import me.rerere.rikkahub.utils.JsonInstant
 
 @Database(
     entities = [ConversationEntity::class, MemoryEntity::class, GenMediaEntity::class, MessageNodeEntity::class],
-    version = 12,
+    version = 13,
     autoMigrations = [
         AutoMigration(from = 1, to = 2),
         AutoMigration(from = 2, to = 3),
@@ -30,6 +31,7 @@ import me.rerere.rikkahub.utils.JsonInstant
         AutoMigration(from = 8, to = 9, spec = Migration_8_9::class),
         AutoMigration(from = 9, to = 10),
         AutoMigration(from = 10, to = 11),
+        AutoMigration(from = 12, to = 13, spec = Migration_12_13::class),
     ]
 )
 @TypeConverters(TokenUsageConverter::class)

@@ -647,6 +647,7 @@
   <string name="use_web_search">Web Search</string>
   <string name="user_default_name">User</string>
   <string name="video">Video</string>
+  <string name="voice_input">Voice Input</string>
   <string name="web_search_disabled">Web search disabled</string>
   <string name="web_search_enabled">Web search enabled</string>
   <string name="prompt_page_title">Prompt Injection</string>

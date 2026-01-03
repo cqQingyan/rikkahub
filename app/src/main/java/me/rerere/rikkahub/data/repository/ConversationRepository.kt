@@ -181,7 +181,6 @@ class ConversationRepository(
             assistantId = conversation.assistantId.toString(),
             truncateIndex = conversation.truncateIndex,
             chatSuggestions = JsonInstant.encodeToString(conversation.chatSuggestions),
-            isPinned = conversation.isPinned
         )
     }
 
@@ -198,24 +197,6 @@ class ConversationRepository(
             assistantId = Uuid.parse(conversationEntity.assistantId),
             truncateIndex = conversationEntity.truncateIndex,
             chatSuggestions = JsonInstant.decodeFromString(conversationEntity.chatSuggestions),
-            isPinned = conversationEntity.isPinned,
-        )
-    }
-
-    fun getPinnedConversations(): Flow<List<Conversation>> {
-        return conversationDAO
-            .getPinnedConversations()
-            .map { flow ->
-                flow.map { entity ->
-                    conversationEntityToConversation(entity, emptyList())
-                }
-            }
-    }
-
-    suspend fun togglePinStatus(conversationId: Uuid) {
-        conversationDAO.updatePinStatus(
-            id = conversationId.toString(),
-            isPinned = !(getConversationById(conversationId)?.isPinned ?: false)
         )
     }
 
@@ -224,7 +205,6 @@ class ConversationRepository(
             id = Uuid.parse(entity.id),
             assistantId = Uuid.parse(entity.assistantId),
             title = entity.title,
-            isPinned = entity.isPinned,
             createAt = Instant.ofEpochMilli(entity.createAt),
             updateAt = Instant.ofEpochMilli(entity.updateAt),
             messageNodes = emptyList(),
@@ -275,7 +255,6 @@ data class LightConversationEntity(
     val id: String,
     val assistantId: String,
     val title: String,
-    val isPinned: Boolean,
     val createAt: Long,
     val updateAt: Long,
 )
