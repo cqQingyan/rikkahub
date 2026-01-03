@@ -235,11 +235,11 @@ fun SettingTTSPage(vm: SettingVM = koinViewModel()) {
 @Composable
 private fun AddTTSProviderButton(onAdd: (TTSProviderSetting) -> Unit) {
     var showBottomSheet by remember { mutableStateOf(false) }
-    var currentProvider: TTSProviderSetting by remember { mutableStateOf(TTSProviderSetting.SystemTTS()) }
+    var currentProvider: TTSProviderSetting by remember { mutableStateOf(TTSProviderSetting.OpenAI()) }
 
     IconButton(
         onClick = {
-            currentProvider = TTSProviderSetting.SystemTTS()
+            currentProvider = TTSProviderSetting.OpenAI()
             showBottomSheet = true
         }
     ) {
