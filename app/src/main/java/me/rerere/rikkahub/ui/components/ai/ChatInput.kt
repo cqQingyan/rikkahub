@@ -246,27 +246,6 @@ fun ChatInput(
                         )
                     }
 
-                    // Voice Input
-                    IconButton(
-                        onClick = {
-                            try {
-                                val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
-                                    putExtra(
-                                        RecognizerIntent.EXTRA_LANGUAGE_MODEL,
-                                        RecognizerIntent.LANGUAGE_MODEL_FREE_FORM
-                                    )
-                                }
-                                sttLauncher.launch(intent)
-                            } catch (e: Exception) {
-                                toaster.show(
-                                    message = "Failed to launch voice input: ${e.message}",
-                                    type = ToastType.Error
-                                )
-                            }
-                        }
-                    ) {
-                        Icon(Lucide.Mic, stringResource(R.string.voice_input))
-                    }
 
                     // TextField
                     Box(modifier = Modifier.weight(1f)) {
@@ -280,14 +259,34 @@ fun ChatInput(
                             .size(40.dp)
                             .clip(CircleShape)
                             .combinedClickable(
-                                enabled = state.loading || !state.isEmpty(),
+                                enabled = true,
                                 onClick = {
-                                    expand = ExpandState.Collapsed
-                                    sendMessage()
+                                    if (state.isEmpty() && !state.loading) {
+                                        // Voice Input
+                                        try {
+                                            val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+                                                putExtra(
+                                                    RecognizerIntent.EXTRA_LANGUAGE_MODEL,
+                                                    RecognizerIntent.LANGUAGE_MODEL_FREE_FORM
+                                                )
+                                            }
+                                            sttLauncher.launch(intent)
+                                        } catch (e: Exception) {
+                                            toaster.show(
+                                                message = "Failed to launch voice input: ${e.message}",
+                                                type = ToastType.Error
+                                            )
+                                        }
+                                    } else {
+                                        expand = ExpandState.Collapsed
+                                        sendMessage()
+                                    }
                                 },
                                 onLongClick = {
-                                    expand = ExpandState.Collapsed
-                                    sendMessageWithoutAnswer()
+                                    if (!state.isEmpty() || state.loading) {
+                                        expand = ExpandState.Collapsed
+                                        sendMessageWithoutAnswer()
+                                    }
                                 }
                             )
                     ) {
@@ -311,6 +310,8 @@ fun ChatInput(
                             KeepScreenOn()
                             // Square stop icon style often used in AI apps
                             Icon(Lucide.X, stringResource(R.string.stop), tint = contentColor, modifier = Modifier.size(20.dp))
+                        } else if (state.isEmpty()) {
+                            Icon(Lucide.Mic, stringResource(R.string.voice_input), tint = contentColor, modifier = Modifier.size(20.dp))
                         } else {
                             Icon(Lucide.ArrowUp, stringResource(R.string.send), tint = contentColor, modifier = Modifier.size(24.dp))
                         }
@@ -417,7 +418,7 @@ private fun TextInputField(
             placeholder = {
                 Text(stringResource(R.string.chat_input_placeholder))
             },
-            lineLimits = TextFieldLineLimits.MultiLine(maxHeightInLines = 5),
+            lineLimits = TextFieldLineLimits.MultiLine(maxHeightInLines = 6),
             colors = TextFieldDefaults.colors().copy(
                 unfocusedIndicatorColor = Color.Transparent,
                 focusedIndicatorColor = Color.Transparent,

@@ -32,7 +32,10 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.tween
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -108,8 +111,21 @@ fun ChatDrawerContent(
     ModalDrawerSheet(
         modifier = Modifier.width(300.dp)
     ) {
+        val scale = remember { Animatable(0.95f) }
+        androidx.compose.runtime.LaunchedEffect(Unit) {
+            scale.animateTo(
+                targetValue = 1f,
+                animationSpec = tween(
+                    durationMillis = 300,
+                    easing = androidx.compose.animation.core.FastOutSlowInEasing
+                )
+            )
+        }
+
         Column(
-            modifier = Modifier.padding(8.dp),
+            modifier = Modifier
+                .padding(8.dp)
+                .scale(scale.value),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             if (settings.displaySetting.showUpdates && !isPlayStore) {

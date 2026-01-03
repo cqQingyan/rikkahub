@@ -102,7 +102,8 @@ fun SettingPage(vm: SettingVM = koinViewModel()) {
     ) { innerPadding ->
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
-            contentPadding = innerPadding + PaddingValues(8.dp),
+            contentPadding = innerPadding + PaddingValues(16.dp),
+            verticalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(16.dp)
         ) {
             if (settings.isNotConfigured()) {
                 item {
@@ -110,194 +111,152 @@ fun SettingPage(vm: SettingVM = koinViewModel()) {
                 }
             }
 
-            stickyHeader {
-                Text(
-                    text = stringResource(R.string.setting_page_general_settings),
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.primary
-                )
-            }
-
-            item("colorMode") {
-                var colorMode by rememberColorMode()
-                ListItem(
-                    headlineContent = {
-                        Text(stringResource(R.string.setting_page_color_mode))
-                    },
-                    leadingContent = {
-                        Icon(Lucide.SunMoon, null)
-                    },
-                    trailingContent = {
-                        Select(
-                            options = ColorMode.entries,
-                            selectedOption = colorMode,
-                            onOptionSelected = {
-                                colorMode = it
-                                navController.navigate(Screen.Setting) {
-                                    launchSingleTop = true
-                                    popUpTo(Screen.Setting) {
-                                        inclusive = true
+            item {
+                SettingGroup(
+                    title = stringResource(R.string.setting_page_general_settings),
+                ) {
+                    var colorMode by rememberColorMode()
+                    ListItem(
+                        headlineContent = {
+                            Text(stringResource(R.string.setting_page_color_mode))
+                        },
+                        leadingContent = {
+                            Icon(Lucide.SunMoon, null)
+                        },
+                        trailingContent = {
+                            Select(
+                                options = ColorMode.entries,
+                                selectedOption = colorMode,
+                                onOptionSelected = {
+                                    colorMode = it
+                                    navController.navigate(Screen.Setting) {
+                                        launchSingleTop = true
+                                        popUpTo(Screen.Setting) {
+                                            inclusive = true
+                                        }
                                     }
-                                }
-                            },
-                            optionToString = {
-                                when (it) {
-                                    ColorMode.SYSTEM -> stringResource(R.string.setting_page_color_mode_system)
-                                    ColorMode.LIGHT -> stringResource(R.string.setting_page_color_mode_light)
-                                    ColorMode.DARK -> stringResource(R.string.setting_page_color_mode_dark)
-                                }
-                            },
-                            modifier = Modifier.width(150.dp)
-                        )
-                    }
-                )
-            }
-
-
-            item {
-                SettingItem(
-                    navController = navController,
-                    title = { Text(stringResource(R.string.setting_page_display_setting)) },
-                    description = { Text(stringResource(R.string.setting_page_display_setting_desc)) },
-                    icon = { Icon(Lucide.Monitor, "Display Setting") },
-                    link = Screen.SettingDisplay
-                )
-            }
-
-            item {
-                SettingItem(
-                    navController = navController,
-                    title = { Text(stringResource(R.string.setting_page_assistant)) },
-                    description = { Text(stringResource(R.string.setting_page_assistant_desc)) },
-                    icon = { Icon(Lucide.Drama, "Assistant") },
-                    link = Screen.Assistant
-                )
-            }
-
-            item {
-                SettingItem(
-                    navController = navController,
-                    title = { Text(stringResource(R.string.setting_page_prompts_title)) },
-                    description = { Text(stringResource(R.string.setting_page_prompts_desc)) },
-                    icon = { Icon(Lucide.BookOpen, "Prompts") },
-                    link = Screen.Prompts
-                )
-            }
-
-            stickyHeader {
-                Text(
-                    text = stringResource(R.string.setting_page_model_and_services),
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.primary
-                )
-            }
-
-            item {
-                SettingItem(
-                    navController = navController,
-                    title = { Text(stringResource(R.string.setting_page_default_model)) },
-                    description = { Text(stringResource(R.string.setting_page_default_model_desc)) },
-                    icon = { Icon(Lucide.Hammer, stringResource(R.string.setting_page_default_model)) },
-                    link = Screen.SettingModels
-                )
-            }
-
-            item {
-                SettingItem(
-                    navController = navController,
-                    title = { Text(stringResource(R.string.setting_page_providers)) },
-                    description = { Text(stringResource(R.string.setting_page_providers_desc)) },
-                    icon = { Icon(Lucide.Boxes, "Models") },
-                    link = Screen.SettingProvider
-                )
-            }
-
-            item {
-                SettingItem(
-                    navController = navController,
-                    title = { Text(stringResource(R.string.setting_page_search_service)) },
-                    description = { Text(stringResource(R.string.setting_page_search_service_desc)) },
-                    icon = { Icon(Lucide.Earth, "Search") },
-                    link = Screen.SettingSearch
-                )
-            }
-
-            item {
-                SettingItem(
-                    navController = navController,
-                    title = { Text(stringResource(R.string.setting_page_tts_service)) },
-                    description = { Text(stringResource(R.string.setting_page_tts_service_desc)) },
-                    icon = { Icon(Lucide.Volume2, "TTS") },
-                    link = Screen.SettingTTS
-                )
-            }
-
-
-            stickyHeader {
-                Text(
-                    text = stringResource(R.string.setting_page_data_settings),
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.primary
-                )
-            }
-
-            item {
-                SettingItem(
-                    navController = navController,
-                    title = { Text(stringResource(R.string.setting_page_data_backup)) },
-                    description = { Text(stringResource(R.string.setting_page_data_backup_desc)) },
-                    icon = { Icon(Lucide.Database, "Backup") },
-                    link = Screen.Backup
-                )
-            }
-
-            item {
-                val context = LocalContext.current
-                val storageState by produceState(-1 to 0L) {
-                    value = context.countChatFiles()
-                }
-                SettingItem(
-                    navController = navController,
-                    title = { Text(stringResource(R.string.setting_page_chat_storage)) },
-                    description = {
-                        if (storageState.first == -1) {
-                            Text(stringResource(R.string.calculating))
-                        } else {
-                            Text(
-                                stringResource(
-                                    R.string.setting_page_chat_storage_desc,
-                                    storageState.first,
-                                    storageState.second / 1024 / 1024.0
-                                )
+                                },
+                                optionToString = {
+                                    when (it) {
+                                        ColorMode.SYSTEM -> stringResource(R.string.setting_page_color_mode_system)
+                                        ColorMode.LIGHT -> stringResource(R.string.setting_page_color_mode_light)
+                                        ColorMode.DARK -> stringResource(R.string.setting_page_color_mode_dark)
+                                    }
+                                },
+                                modifier = Modifier.width(150.dp)
                             )
                         }
-                    },
-                    icon = {
-                        Icon(Lucide.HardDrive, "Storage")
-                    },
-                )
-            }
+                    )
 
-            stickyHeader {
-                Text(
-                    text = stringResource(R.string.setting_page_about),
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.primary
-                )
+                    SettingItem(
+                        navController = navController,
+                        title = { Text(stringResource(R.string.setting_page_display_setting)) },
+                        description = { Text(stringResource(R.string.setting_page_display_setting_desc)) },
+                        icon = { Icon(Lucide.Monitor, "Display Setting") },
+                        link = Screen.SettingDisplay
+                    )
+
+                    SettingItem(
+                        navController = navController,
+                        title = { Text(stringResource(R.string.setting_page_assistant)) },
+                        description = { Text(stringResource(R.string.setting_page_assistant_desc)) },
+                        icon = { Icon(Lucide.Drama, "Assistant") },
+                        link = Screen.Assistant
+                    )
+
+                    SettingItem(
+                        navController = navController,
+                        title = { Text(stringResource(R.string.setting_page_prompts_title)) },
+                        description = { Text(stringResource(R.string.setting_page_prompts_desc)) },
+                        icon = { Icon(Lucide.BookOpen, "Prompts") },
+                        link = Screen.Prompts
+                    )
+                }
             }
 
             item {
-                SettingItem(
-                    navController = navController,
-                    title = { Text(stringResource(R.string.setting_page_request_logs)) },
-                    description = { Text(stringResource(R.string.setting_page_request_logs_desc)) },
-                    icon = { Icon(Lucide.ScrollText, stringResource(R.string.setting_page_request_logs)) },
-                    link = Screen.Log
-                )
+                SettingGroup(
+                    title = stringResource(R.string.setting_page_model_and_services),
+                ) {
+                    SettingItem(
+                        navController = navController,
+                        title = { Text(stringResource(R.string.setting_page_default_model)) },
+                        description = { Text(stringResource(R.string.setting_page_default_model_desc)) },
+                        icon = { Icon(Lucide.Hammer, stringResource(R.string.setting_page_default_model)) },
+                        link = Screen.SettingModels
+                    )
+
+                    SettingItem(
+                        navController = navController,
+                        title = { Text(stringResource(R.string.setting_page_providers)) },
+                        description = { Text(stringResource(R.string.setting_page_providers_desc)) },
+                        icon = { Icon(Lucide.Boxes, "Models") },
+                        link = Screen.SettingProvider
+                    )
+
+                    SettingItem(
+                        navController = navController,
+                        title = { Text(stringResource(R.string.setting_page_search_service)) },
+                        description = { Text(stringResource(R.string.setting_page_search_service_desc)) },
+                        icon = { Icon(Lucide.Earth, "Search") },
+                        link = Screen.SettingSearch
+                    )
+
+                    SettingItem(
+                        navController = navController,
+                        title = { Text(stringResource(R.string.setting_page_tts_service)) },
+                        description = { Text(stringResource(R.string.setting_page_tts_service_desc)) },
+                        icon = { Icon(Lucide.Volume2, "TTS") },
+                        link = Screen.SettingTTS
+                    )
+                }
+            }
+
+            item {
+                SettingGroup(
+                    title = stringResource(R.string.setting_page_data_settings),
+                ) {
+                    SettingItem(
+                        navController = navController,
+                        title = { Text(stringResource(R.string.setting_page_data_backup)) },
+                        description = { Text(stringResource(R.string.setting_page_data_backup_desc)) },
+                        icon = { Icon(Lucide.Database, "Backup") },
+                        link = Screen.Backup
+                    )
+
+                    val context = LocalContext.current
+                    val storageState by produceState(-1 to 0L) {
+                        value = context.countChatFiles()
+                    }
+                    SettingItem(
+                        navController = navController,
+                        title = { Text(stringResource(R.string.setting_page_chat_storage)) },
+                        description = {
+                            if (storageState.first == -1) {
+                                Text(stringResource(R.string.calculating))
+                            } else {
+                                Text(
+                                    stringResource(
+                                        R.string.setting_page_chat_storage_desc,
+                                        storageState.first,
+                                        storageState.second / 1024 / 1024.0
+                                    )
+                                )
+                            }
+                        },
+                        icon = {
+                            Icon(Lucide.HardDrive, "Storage")
+                        },
+                    )
+
+                    SettingItem(
+                        navController = navController,
+                        title = { Text(stringResource(R.string.setting_page_request_logs)) },
+                        description = { Text(stringResource(R.string.setting_page_request_logs_desc)) },
+                        icon = { Icon(Lucide.ScrollText, stringResource(R.string.setting_page_request_logs)) },
+                        link = Screen.Log
+                    )
+                }
             }
         }
     }
@@ -356,7 +315,8 @@ fun SettingItem(
         onClick = {
             if (link != null) navController.navigate(link)
             onClick()
-        }
+        },
+        color = Color.Transparent
     ) {
         ListItem(
             headlineContent = {
@@ -367,7 +327,36 @@ fun SettingItem(
             },
             leadingContent = {
                 icon()
-            }
+            },
+            colors = ListItemDefaults.colors(
+                containerColor = Color.Transparent
+            )
         )
+    }
+}
+
+@Composable
+fun SettingGroup(
+    title: String,
+    content: @Composable () -> Unit
+) {
+    Column(
+        verticalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(4.dp)
+    ) {
+        Text(
+            text = title,
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.primary
+        )
+        Card(
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surfaceContainer
+            )
+        ) {
+            Column {
+                content()
+            }
+        }
     }
 }

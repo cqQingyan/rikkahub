@@ -27,3 +27,21 @@ fun rememberAvatarShape(loading: Boolean): Shape {
     )
     return if (loading) MaterialShapes.Cookie6Sided.toShape(rotateAngle.value.roundToInt()) else CircleShape
 }
+
+@Composable
+fun rememberAvatarBreathing(loading: Boolean): Float {
+    if (!loading) return 1f
+    val infiniteTransition = rememberInfiniteTransition()
+    val scale = infiniteTransition.animateFloat(
+        initialValue = 0.85f,
+        targetValue = 1.0f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(
+                durationMillis = 1000,
+                easing = androidx.compose.animation.core.FastOutSlowInEasing
+            ),
+            repeatMode = androidx.compose.animation.core.RepeatMode.Reverse
+        )
+    )
+    return scale.value
+}
