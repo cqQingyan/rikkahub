@@ -310,12 +310,13 @@ private fun MessagePartsBlock(
     parts.filterIsInstance<UIMessagePart.Text>().fastForEach { part ->
         SelectionContainer {
             if (role == MessageRole.USER) {
-                Card(
+                Surface(
                     modifier = Modifier
                         .animateContentSize(),
-                    shape = MaterialTheme.shapes.medium,
+                    shape = MaterialTheme.shapes.large,
+                    color = MaterialTheme.colorScheme.secondaryContainer,
                 ) {
-                    Column(modifier = Modifier.padding(8.dp)) {
+                    Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
                         MarkdownBlock(
                             content = part.text.replaceRegexes(
                                 assistant = assistant,
