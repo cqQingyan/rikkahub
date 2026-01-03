@@ -329,6 +329,7 @@ private fun MessagePartsBlock(
                     }
                 }
             } else {
+                // Assistant message - no card background
                 MarkdownBlock(
                     content = part.text.replaceRegexes(
                         assistant = assistant,

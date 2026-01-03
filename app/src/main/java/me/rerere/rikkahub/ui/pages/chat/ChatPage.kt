@@ -236,6 +236,7 @@ private fun ChatPageContent(
     val scope = rememberCoroutineScope()
     val toaster = LocalToaster.current
     var previewMode by rememberSaveable { mutableStateOf(false) }
+    val scrollBehavior = TopAppBarDefaults.enterAlwaysScrollBehavior()
 
     LaunchedEffect(loadingJob) {
         inputState.loading = loadingJob != null
@@ -247,6 +248,7 @@ private fun ChatPageContent(
     ) {
         AssistantBackground(setting = setting)
         Scaffold(
+            modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
             topBar = {
                 TopBar(
                     settings = setting,
@@ -254,6 +256,7 @@ private fun ChatPageContent(
                     bigScreen = bigScreen,
                     drawerState = drawerState,
                     previewMode = previewMode,
+                    scrollBehavior = scrollBehavior,
                     onNewChat = {
                         navigateToChatPage(navController)
                     },
@@ -262,6 +265,9 @@ private fun ChatPageContent(
                     },
                     onUpdateTitle = {
                         vm.updateTitle(it)
+                    },
+                    onUpdateChatModel = {
+                        vm.setChatModel(assistant = setting.getCurrentAssistant(), model = it)
                     }
                 )
             },
@@ -379,10 +385,7 @@ private fun ChatPageContent(
                         ))
                     vm.saveConversationAsync()
                 },
-                onClickSuggestion = { suggestion ->
-                    inputState.editingMessage = null
-                    inputState.setMessageText(suggestion)
-                },
+                onClickSuggestion = { _ -> },
                 onTranslate = { message, locale ->
                     vm.translateMessage(message, locale)
                 },
@@ -407,9 +410,11 @@ private fun TopBar(
     drawerState: DrawerState,
     bigScreen: Boolean,
     previewMode: Boolean,
+    scrollBehavior: TopAppBarScrollBehavior,
     onClickMenu: () -> Unit,
     onNewChat: () -> Unit,
-    onUpdateTitle: (String) -> Unit
+    onUpdateTitle: (String) -> Unit,
+    onUpdateChatModel: (Model) -> Unit
 ) {
     val scope = rememberCoroutineScope()
     val toaster = LocalToaster.current
@@ -417,8 +422,43 @@ private fun TopBar(
         onUpdateTitle(it)
     }
 
-    TopAppBar(
-        colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent),
+    // Model Selector
+    val assistant = settings.getCurrentAssistant()
+    var showModelSelector by remember { mutableStateOf(false) }
+    if (showModelSelector) {
+        ModalBottomSheet(
+            onDismissRequest = {
+                showModelSelector = false
+            }
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                Text(
+                    text = stringResource(R.string.setting_model_page_chat_model),
+                    style = MaterialTheme.typography.titleMedium
+                )
+                me.rerere.rikkahub.ui.components.ai.ModelSelector(
+                    modelId = assistant.chatModelId ?: settings.chatModelId,
+                    providers = settings.providers,
+                    onSelect = {
+                        onUpdateChatModel(it)
+                        showModelSelector = false
+                    },
+                    type = me.rerere.ai.provider.ModelType.CHAT,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Spacer(Modifier.height(32.dp))
+            }
+        }
+    }
+
+    CenterAlignedTopAppBar(
+        scrollBehavior = scrollBehavior,
+        colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = Color.Transparent),
         navigationIcon = {
             if (!bigScreen) {
                 IconButton(
@@ -442,26 +482,50 @@ private fun TopBar(
                 },
                 color = Color.Transparent,
             ) {
-                Column {
-                    val assistant = settings.getCurrentAssistant()
-                    val model = settings.getCurrentChatModel()
-                    val provider = model?.findProvider(providers = settings.providers, checkOverwrite = false)
-                    Text(
-                        text = conversation.title.ifBlank { stringResource(R.string.chat_page_new_chat) },
-                        maxLines = 1,
-                        style = MaterialTheme.typography.bodyMedium,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                    if (model != null && provider != null) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                ) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
                         Text(
-                            text = "${assistant.name.ifBlank { stringResource(R.string.assistant_page_default_assistant) }} / ${model.displayName} (${provider.name})",
-                            overflow = TextOverflow.Ellipsis,
+                            text = conversation.title.ifBlank { stringResource(R.string.chat_page_new_chat) },
                             maxLines = 1,
-                            color = LocalContentColor.current.copy(0.65f),
-                            style = MaterialTheme.typography.labelSmall.copy(
-                                fontSize = 8.sp,
-                            )
+                            style = MaterialTheme.typography.bodyMedium,
+                            overflow = TextOverflow.Ellipsis,
                         )
+
+                        val model = settings.getCurrentChatModel()
+                        val provider = model?.findProvider(providers = settings.providers, checkOverwrite = false)
+
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.clickable {
+                                showModelSelector = true
+                            }
+                        ) {
+                            Text(
+                                text = if (model != null) {
+                                    model.displayName
+                                } else {
+                                    stringResource(R.string.setting_model_page_chat_model)
+                                },
+                                overflow = TextOverflow.Ellipsis,
+                                maxLines = 1,
+                                color = LocalContentColor.current.copy(0.65f),
+                                style = MaterialTheme.typography.labelSmall.copy(
+                                    fontSize = 10.sp,
+                                )
+                            )
+                            Icon(
+                                imageVector = Lucide.ChevronDown,
+                                contentDescription = null,
+                                modifier = Modifier.size(12.dp),
+                                tint = LocalContentColor.current.copy(0.65f)
+                            )
+                        }
                     }
                 }
             }
