@@ -209,121 +209,77 @@ fun ChatInput(
             MediaFileInputRow(state = state, context = context)
 
             // Text Input Row
-            TextInputRow(state = state, context = context)
-
-            // Actions Row
-            Row(
-                modifier = Modifier.padding(horizontal = 12.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            Surface(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                shape = CircleShape, // Floating Pill shape
+                tonalElevation = 4.dp,
+                shadowElevation = 4.dp,
+                color = MaterialTheme.colorScheme.surface
             ) {
                 Row(
-                    modifier = Modifier
-                        .weight(1f)
-                        .horizontalScroll(rememberScrollState()),
-                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
                 ) {
-                    // Model Picker
-                    ModelSelector(
-                        modelId = assistant.chatModelId ?: settings.chatModelId,
-                        providers = settings.providers,
-                        onSelect = {
-                            onUpdateChatModel(it)
-                            dismissExpand()
-                        },
-                        type = ModelType.CHAT,
-                        onlyIcon = true,
-                        modifier = Modifier,
-                    )
+                    // Insert files
+                    IconButton(
+                        onClick = {
+                            expandToggle(ExpandState.Files)
+                        }
+                    ) {
+                        Icon(
+                            if (expand == ExpandState.Files) Lucide.X else Lucide.Plus,
+                            stringResource(R.string.more_options)
+                        )
+                    }
 
-                    // Search
-                    val enableSearchMsg = stringResource(R.string.web_search_enabled)
-                    val disableSearchMsg = stringResource(R.string.web_search_disabled)
-                    val chatModel = settings.getCurrentChatModel()
-                    SearchPickerButton(
-                        enableSearch = enableSearch,
-                        settings = settings,
-                        onToggleSearch = { enabled ->
-                            onToggleSearch(enabled)
-                            toaster.show(
-                                message = if (enabled) enableSearchMsg else disableSearchMsg,
-                                duration = 1.seconds,
-                                type = if (enabled) {
-                                    ToastType.Success
-                                } else {
-                                    ToastType.Normal
+                    // TextField
+                    Box(modifier = Modifier.weight(1f)) {
+                         TextInputField(state = state, assistant = assistant, context = context)
+                    }
+
+                    // Send Button
+                    Box(
+                        contentAlignment = Alignment.Center,
+                        modifier = Modifier
+                            .size(40.dp)
+                            .clip(CircleShape)
+                            .combinedClickable(
+                                enabled = state.loading || !state.isEmpty(),
+                                onClick = {
+                                    expand = ExpandState.Collapsed
+                                    sendMessage()
+                                },
+                                onLongClick = {
+                                    expand = ExpandState.Collapsed
+                                    sendMessageWithoutAnswer()
                                 }
                             )
-                        },
-                        onUpdateSearchService = onUpdateSearchService,
-                        model = chatModel,
-                    )
-
-                    // Reasoning
-                    val model = settings.getCurrentChatModel()
-                    if (model?.abilities?.contains(ModelAbility.REASONING) == true) {
-                        ReasoningButton(
-                            reasoningTokens = assistant.thinkingBudget ?: 0,
-                            onUpdateReasoningTokens = {
-                                onUpdateAssistant(assistant.copy(thinkingBudget = it))
-                            },
-                            onlyIcon = true,
+                    ) {
+                        val containerColor = when {
+                            state.loading -> MaterialTheme.colorScheme.error // Loading -> Red
+                            state.isEmpty() -> MaterialTheme.colorScheme.surfaceVariant // Empty -> Grayish
+                            else -> MaterialTheme.colorScheme.primary // Ready -> Primary
+                        }
+                        val contentColor = when {
+                            state.loading -> MaterialTheme.colorScheme.onError
+                            state.isEmpty() -> MaterialTheme.colorScheme.onSurfaceVariant
+                            else -> MaterialTheme.colorScheme.onPrimary
+                        }
+                        Surface(
+                            modifier = Modifier.fillMaxSize(),
+                            shape = CircleShape,
+                            color = containerColor,
+                            content = {}
                         )
-                    }
-
-                }
-
-                // Insert files
-                IconButton(
-                    onClick = {
-                        expandToggle(ExpandState.Files)
-                    }
-                ) {
-                    Icon(
-                        if (expand == ExpandState.Files) Lucide.X else Lucide.Plus,
-                        stringResource(R.string.more_options)
-                    )
-                }
-
-                // Send Button
-                Box(
-                    contentAlignment = Alignment.Center,
-                    modifier = Modifier
-                        .size(40.dp)
-                        .clip(CircleShape)
-                        .combinedClickable(
-                            enabled = state.loading || !state.isEmpty(),
-                            onClick = {
-                                expand = ExpandState.Collapsed
-                                sendMessage()
-                            },
-                            onLongClick = {
-                                expand = ExpandState.Collapsed
-                                sendMessageWithoutAnswer()
-                            }
-                        )
-                ) {
-                    val containerColor = when {
-                        state.loading -> MaterialTheme.colorScheme.errorContainer // 加载时，红色
-                        state.isEmpty() -> MaterialTheme.colorScheme.surfaceContainerHigh // 禁用时(输入为空)，灰色
-                        else -> MaterialTheme.colorScheme.primary // 启用时(输入非空)，绿色/主题色
-                    }
-                    val contentColor = when {
-                        state.loading -> MaterialTheme.colorScheme.onErrorContainer
-                        state.isEmpty() -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f) // 禁用时，内容用带透明度的灰色
-                        else -> MaterialTheme.colorScheme.onPrimary
-                    }
-                    Surface(
-                        modifier = Modifier.fillMaxSize(),
-                        shape = CircleShape,
-                        color = containerColor,
-                        content = {}
-                    )
-                    if (state.loading) {
-                        KeepScreenOn()
-                        Icon(Lucide.X, stringResource(R.string.stop), tint = contentColor)
-                    } else {
-                        Icon(Lucide.ArrowUp, stringResource(R.string.send), tint = contentColor)
+                        if (state.loading) {
+                            KeepScreenOn()
+                            // Square stop icon style often used in AI apps
+                            Icon(Lucide.X, stringResource(R.string.stop), tint = contentColor, modifier = Modifier.size(20.dp))
+                        } else {
+                            Icon(Lucide.ArrowUp, stringResource(R.string.send), tint = contentColor, modifier = Modifier.size(24.dp))
+                        }
                     }
                 }
             }
@@ -360,114 +316,100 @@ fun ChatInput(
 }
 
 @Composable
-private fun TextInputRow(
+private fun TextInputField(
     state: ChatInputState,
+    assistant: Assistant,
     context: Context,
 ) {
-    val assistant = LocalSettings.current.getCurrentAssistant()
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 12.dp),
-    ) {
-        // TextField
-        Surface(
-            shape = RoundedCornerShape(32.dp),
-            tonalElevation = 4.dp,
-            modifier = Modifier.weight(1f)
-        ) {
-            Column {
-                if (state.isEditing()) {
-                    Surface(
-                        tonalElevation = 8.dp
-                    ) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 16.dp, vertical = 4.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                text = stringResource(R.string.editing),
-                            )
-                            Spacer(Modifier.weight(1f))
-                            Icon(
-                                Lucide.X, stringResource(R.string.cancel_edit),
-                                modifier = Modifier
-                                    .clickable {
-                                        state.clearInput()
-                                    }
-                            )
-                        }
-                    }
-                }
-                var isFocused by remember { mutableStateOf(false) }
-                var isFullScreen by remember { mutableStateOf(false) }
-                val receiveContentListener = remember {
-                    ReceiveContentListener { transferableContent ->
-                        when {
-                            transferableContent.hasMediaType(MediaType.Image) -> {
-                                transferableContent.consume { item ->
-                                    val uri = item.uri
-                                    if (uri != null) {
-                                        state.addImages(
-                                            context.createChatFilesByContents(
-                                                listOf(
-                                                    uri
-                                                )
-                                            )
-                                        )
-                                    }
-                                    uri != null
-                                }
-                            }
-
-                            else -> transferableContent
-                        }
-                    }
-                }
-                TextField(
-                    state = state.textContent,
+    Column {
+        if (state.isEditing()) {
+            Surface(
+                tonalElevation = 8.dp
+            ) {
+                Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .contentReceiver(receiveContentListener)
-                        .onFocusChanged {
-                            isFocused = it.isFocused
-                        },
-                    shape = RoundedCornerShape(32.dp),
-                    placeholder = {
-                        Text(stringResource(R.string.chat_input_placeholder))
-                    },
-                    lineLimits = TextFieldLineLimits.MultiLine(maxHeightInLines = 5),
-                    colors = TextFieldDefaults.colors().copy(
-                        unfocusedIndicatorColor = Color.Transparent,
-                        focusedIndicatorColor = Color.Transparent,
-                        focusedContainerColor = Color.Transparent,
-                        unfocusedContainerColor = Color.Transparent,
-                    ),
-                    trailingIcon = {
-                        if (isFocused) {
-                            IconButton(
-                                onClick = {
-                                    isFullScreen = !isFullScreen
-                                }
-                            ) {
-                                Icon(Lucide.Fullscreen, null)
+                        .padding(horizontal = 16.dp, vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = stringResource(R.string.editing),
+                    )
+                    Spacer(Modifier.weight(1f))
+                    Icon(
+                        Lucide.X, stringResource(R.string.cancel_edit),
+                        modifier = Modifier
+                            .clickable {
+                                state.clearInput()
                             }
+                    )
+                }
+            }
+        }
+        var isFocused by remember { mutableStateOf(false) }
+        var isFullScreen by remember { mutableStateOf(false) }
+        val receiveContentListener = remember {
+            ReceiveContentListener { transferableContent ->
+                when {
+                    transferableContent.hasMediaType(MediaType.Image) -> {
+                        transferableContent.consume { item ->
+                            val uri = item.uri
+                            if (uri != null) {
+                                state.addImages(
+                                    context.createChatFilesByContents(
+                                        listOf(
+                                            uri
+                                        )
+                                    )
+                                )
+                            }
+                            uri != null
                         }
-                    },
-                    leadingIcon = if (assistant.quickMessages.isNotEmpty()) {
-                        {
-                            QuickMessageButton(assistant = assistant, state = state)
+                    }
+
+                    else -> transferableContent
+                }
+            }
+        }
+        TextField(
+            state = state.textContent,
+            modifier = Modifier
+                .fillMaxWidth()
+                .contentReceiver(receiveContentListener)
+                .onFocusChanged {
+                    isFocused = it.isFocused
+                },
+            shape = RoundedCornerShape(32.dp),
+            placeholder = {
+                Text(stringResource(R.string.chat_input_placeholder))
+            },
+            lineLimits = TextFieldLineLimits.MultiLine(maxHeightInLines = 5),
+            colors = TextFieldDefaults.colors().copy(
+                unfocusedIndicatorColor = Color.Transparent,
+                focusedIndicatorColor = Color.Transparent,
+                focusedContainerColor = Color.Transparent,
+                unfocusedContainerColor = Color.Transparent,
+            ),
+            trailingIcon = {
+                if (isFocused) {
+                    IconButton(
+                        onClick = {
+                            isFullScreen = !isFullScreen
                         }
-                    } else null,
-                )
-                if (isFullScreen) {
-                    FullScreenEditor(state = state) {
-                        isFullScreen = false
+                    ) {
+                        Icon(Lucide.Fullscreen, null)
                     }
                 }
+            },
+            leadingIcon = if (assistant.quickMessages.isNotEmpty()) {
+                {
+                    QuickMessageButton(assistant = assistant, state = state)
+                }
+            } else null,
+        )
+        if (isFullScreen) {
+            FullScreenEditor(state = state) {
+                isFullScreen = false
             }
         }
     }
