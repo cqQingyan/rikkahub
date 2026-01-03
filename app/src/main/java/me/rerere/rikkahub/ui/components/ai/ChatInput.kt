@@ -1,9 +1,11 @@
 package me.rerere.rikkahub.ui.components.ai
 
+import android.app.Activity
 import android.content.Context
 import android.content.Intent
 import android.graphics.Bitmap
 import android.net.Uri
+import android.speech.RecognizerIntent
 import android.util.Log
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -100,6 +102,7 @@ import com.composables.icons.lucide.Fullscreen
 import com.composables.icons.lucide.GraduationCap
 import com.composables.icons.lucide.Image
 import com.composables.icons.lucide.Lucide
+import com.composables.icons.lucide.Mic
 import com.composables.icons.lucide.Music
 import com.composables.icons.lucide.Plus
 import com.composables.icons.lucide.Video
@@ -196,6 +199,15 @@ fun ChatInput(
         }
     }
 
+    val sttLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+        if (result.resultCode == Activity.RESULT_OK) {
+            val text = result.data?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)?.firstOrNull()
+            if (text != null) {
+                state.appendText(text)
+            }
+        }
+    }
+
     Surface(
         color = Color.Transparent,
     ) {
@@ -232,6 +244,28 @@ fun ChatInput(
                             if (expand == ExpandState.Files) Lucide.X else Lucide.Plus,
                             stringResource(R.string.more_options)
                         )
+                    }
+
+                    // Voice Input
+                    IconButton(
+                        onClick = {
+                            try {
+                                val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+                                    putExtra(
+                                        RecognizerIntent.EXTRA_LANGUAGE_MODEL,
+                                        RecognizerIntent.LANGUAGE_MODEL_FREE_FORM
+                                    )
+                                }
+                                sttLauncher.launch(intent)
+                            } catch (e: Exception) {
+                                toaster.show(
+                                    message = "Failed to launch voice input: ${e.message}",
+                                    type = ToastType.Error
+                                )
+                            }
+                        }
+                    ) {
+                        Icon(Lucide.Mic, stringResource(R.string.voice_input))
                     }
 
                     // TextField
