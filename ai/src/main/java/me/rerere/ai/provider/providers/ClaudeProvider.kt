@@ -27,6 +27,7 @@ import me.rerere.ai.provider.ImageGenerationParams
 import me.rerere.ai.provider.Model
 import me.rerere.ai.provider.ModelAbility
 import me.rerere.ai.provider.Provider
+import me.rerere.ai.provider.ProviderError
 import me.rerere.ai.provider.ProviderSetting
 import me.rerere.ai.provider.TextGenerationParams
 import me.rerere.ai.ui.ImageGenerationResult
@@ -52,95 +53,123 @@ import okhttp3.Response
 import okhttp3.sse.EventSource
 import okhttp3.sse.EventSourceListener
 import okhttp3.sse.EventSources
+import java.io.IOException
 import kotlin.time.Clock
 
 private const val TAG = "ClaudeProvider"
 private const val ANTHROPIC_VERSION = "2023-06-01"
 
 class ClaudeProvider(private val client: OkHttpClient) : Provider<ProviderSetting.Claude> {
-    override suspend fun listModels(providerSetting: ProviderSetting.Claude): List<Model> =
+    override suspend fun listModels(providerSetting: ProviderSetting.Claude): Result<List<Model>> =
         withContext(Dispatchers.IO) {
-            val request = Request.Builder()
-                .url("${providerSetting.baseUrl}/models")
-                .addHeader("x-api-key", providerSetting.apiKey)
-                .addHeader("anthropic-version", ANTHROPIC_VERSION)
-                .get()
-                .build()
+            runCatching {
+                val request = Request.Builder()
+                    .url("${providerSetting.baseUrl}/models")
+                    .addHeader("x-api-key", providerSetting.apiKey)
+                    .addHeader("anthropic-version", ANTHROPIC_VERSION)
+                    .get()
+                    .build()
 
-            val response =
-                client.configureClientWithProxy(providerSetting.proxy).newCall(request).execute()
-            if (!response.isSuccessful) {
-                error("Failed to get models: ${response.code} ${response.body?.string()}")
-            }
+                val response =
+                    client.configureClientWithProxy(providerSetting.proxy).newCall(request).execute()
+                if (!response.isSuccessful) {
+                    val body = response.body?.string() ?: ""
+                    throw ProviderError.ApiError(response.code, body)
+                }
 
-            val bodyStr = response.body?.string() ?: ""
-            val bodyJson = json.parseToJsonElement(bodyStr).jsonObject
-            val data = bodyJson["data"]?.jsonArray ?: return@withContext emptyList()
+                val bodyStr = response.body?.string() ?: ""
+                val bodyJson = try {
+                    json.parseToJsonElement(bodyStr).jsonObject
+                } catch (e: Exception) {
+                    throw ProviderError.ParsingError("Failed to parse response body", e)
+                }
 
-            data.mapNotNull { modelJson ->
-                val modelObj = modelJson.jsonObject
-                val id = modelObj["id"]?.jsonPrimitive?.contentOrNull ?: return@mapNotNull null
-                val displayName = modelObj["display_name"]?.jsonPrimitive?.contentOrNull ?: id
+                val data = bodyJson["data"]?.jsonArray ?: return@runCatching emptyList()
 
-                Model(
-                    modelId = id,
-                    displayName = displayName,
-                )
+                data.mapNotNull { modelJson ->
+                    val modelObj = modelJson.jsonObject
+                    val id = modelObj["id"]?.jsonPrimitive?.contentOrNull ?: return@mapNotNull null
+                    val displayName = modelObj["display_name"]?.jsonPrimitive?.contentOrNull ?: id
+
+                    Model(
+                        modelId = id,
+                        displayName = displayName,
+                    )
+                }
+            }.recoverCatching { e ->
+                when (e) {
+                    is ProviderError -> throw e
+                    is IOException -> throw ProviderError.NetworkError("Failed to connect to Claude API", e)
+                    else -> throw ProviderError.UnknownError("Unknown error occurred", e)
+                }
             }
         }
 
     override suspend fun generateImage(
         providerSetting: ProviderSetting,
         params: ImageGenerationParams
-    ): ImageGenerationResult {
-        error("Claude provider does not support image generation")
+    ): Result<ImageGenerationResult> {
+        return Result.failure(ProviderError.InvalidConfiguration("Claude provider does not support image generation"))
     }
 
     override suspend fun generateText(
         providerSetting: ProviderSetting.Claude,
         messages: List<UIMessage>,
         params: TextGenerationParams
-    ): MessageChunk = withContext(Dispatchers.IO) {
-        val requestBody = buildMessageRequest(messages, params)
-        val request = Request.Builder()
-            .url("${providerSetting.baseUrl}/messages")
-            .headers(params.customHeaders.toHeaders())
-            .post(json.encodeToString(requestBody).toRequestBody("application/json".toMediaType()))
-            .addHeader("x-api-key", providerSetting.apiKey)
-            .addHeader("anthropic-version", ANTHROPIC_VERSION)
-            .configureReferHeaders(providerSetting.baseUrl)
-            .build()
+    ): Result<MessageChunk> = withContext(Dispatchers.IO) {
+        runCatching {
+            val requestBody = buildMessageRequest(messages, params)
+            val request = Request.Builder()
+                .url("${providerSetting.baseUrl}/messages")
+                .headers(params.customHeaders.toHeaders())
+                .post(json.encodeToString(requestBody).toRequestBody("application/json".toMediaType()))
+                .addHeader("x-api-key", providerSetting.apiKey)
+                .addHeader("anthropic-version", ANTHROPIC_VERSION)
+                .configureReferHeaders(providerSetting.baseUrl)
+                .build()
 
-        Log.i(TAG, "generateText: ${json.encodeToString(requestBody)}")
+            Log.i(TAG, "generateText: ${json.encodeToString(requestBody)}")
 
-        val response = client.configureClientWithProxy(providerSetting.proxy).newCall(request).await()
-        if (!response.isSuccessful) {
-            throw Exception("Failed to get response: ${response.code} ${response.body?.string()}")
+            val response = client.configureClientWithProxy(providerSetting.proxy).newCall(request).await()
+            if (!response.isSuccessful) {
+                val body = response.body?.string() ?: ""
+                throw ProviderError.ApiError(response.code, body)
+            }
+
+            val bodyStr = response.body?.string() ?: ""
+            val bodyJson = try {
+                json.parseToJsonElement(bodyStr).jsonObject
+            } catch (e: Exception) {
+                throw ProviderError.ParsingError("Failed to parse response body", e)
+            }
+
+            // 从 JsonObject 中提取必要的信息
+            val id = bodyJson["id"]?.jsonPrimitive?.contentOrNull ?: ""
+            val model = bodyJson["model"]?.jsonPrimitive?.contentOrNull ?: ""
+            val content = bodyJson["content"]?.jsonArray ?: JsonArray(emptyList())
+            val stopReason = bodyJson["stop_reason"]?.jsonPrimitive?.contentOrNull ?: "unknown"
+            val usage = parseTokenUsage(bodyJson["usage"] as? JsonObject)
+
+            MessageChunk(
+                id = id,
+                model = model,
+                choices = listOf(
+                    UIMessageChoice(
+                        index = 0,
+                        delta = null,
+                        message = parseMessage(content),
+                        finishReason = stopReason
+                    )
+                ),
+                usage = usage
+            )
+        }.recoverCatching { e ->
+            when (e) {
+                is ProviderError -> throw e
+                is IOException -> throw ProviderError.NetworkError("Failed to connect to Claude API", e)
+                else -> throw ProviderError.UnknownError("Unknown error occurred", e)
+            }
         }
-
-        val bodyStr = response.body?.string() ?: ""
-        val bodyJson = json.parseToJsonElement(bodyStr).jsonObject
-
-        // 从 JsonObject 中提取必要的信息
-        val id = bodyJson["id"]?.jsonPrimitive?.contentOrNull ?: ""
-        val model = bodyJson["model"]?.jsonPrimitive?.contentOrNull ?: ""
-        val content = bodyJson["content"]?.jsonArray ?: JsonArray(emptyList())
-        val stopReason = bodyJson["stop_reason"]?.jsonPrimitive?.contentOrNull ?: "unknown"
-        val usage = parseTokenUsage(bodyJson["usage"] as? JsonObject)
-
-        MessageChunk(
-            id = id,
-            model = model,
-            choices = listOf(
-                UIMessageChoice(
-                    index = 0,
-                    delta = null,
-                    message = parseMessage(content),
-                    finishReason = stopReason
-                )
-            ),
-            usage = usage
-        )
     }
 
     override suspend fun streamText(

@@ -12,6 +12,7 @@ import kotlinx.serialization.json.put
 import me.rerere.ai.provider.ImageGenerationParams
 import me.rerere.ai.provider.Model
 import me.rerere.ai.provider.Provider
+import me.rerere.ai.provider.ProviderError
 import me.rerere.ai.provider.ProviderSetting
 import me.rerere.ai.provider.TextGenerationParams
 import me.rerere.ai.provider.providers.openai.ChatCompletionsAPI
@@ -33,7 +34,7 @@ import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
-import java.math.BigDecimal
+import java.io.IOException
 
 class OpenAIProvider(
     private val client: OkHttpClient
@@ -43,62 +44,98 @@ class OpenAIProvider(
     private val chatCompletionsAPI = ChatCompletionsAPI(client = client, keyRoulette = keyRoulette)
     private val responseAPI = ResponseAPI(client = client)
 
+    private companion object {
+        const val MODELS_ENDPOINT = "models"
+        const val IMAGES_GENERATIONS_ENDPOINT = "images/generations"
+        const val APPLICATION_JSON = "application/json"
+    }
 
-    override suspend fun listModels(providerSetting: ProviderSetting.OpenAI): List<Model> =
+    private fun getBaseUrl(baseUrl: String, endpoint: String): String {
+        return if (baseUrl.endsWith("/")) "$baseUrl$endpoint" else "$baseUrl/$endpoint"
+    }
+
+    override suspend fun listModels(providerSetting: ProviderSetting.OpenAI): Result<List<Model>> =
         withContext(Dispatchers.IO) {
+            runCatching {
+                val key = keyRoulette.next(providerSetting.apiKey)
+                val request = Request.Builder()
+                    .url(getBaseUrl(providerSetting.baseUrl, MODELS_ENDPOINT))
+                    .addHeader("Authorization", "Bearer $key")
+                    .get()
+                    .build()
+
+                val response = client.configureClientWithProxy(providerSetting.proxy).newCall(request).await()
+                if (!response.isSuccessful) {
+                    val body = response.body?.string() ?: ""
+                    throw ProviderError.ApiError(response.code, body)
+                }
+
+                val bodyStr = response.body?.string() ?: ""
+                val bodyJson = try {
+                    json.parseToJsonElement(bodyStr).jsonObject
+                } catch (e: Exception) {
+                    throw ProviderError.ParsingError("Failed to parse response body", e)
+                }
+
+                val data = bodyJson["data"]?.jsonArray ?: return@runCatching emptyList()
+
+                data.mapNotNull { modelJson ->
+                    val modelObj = modelJson.jsonObject
+                    val id = modelObj["id"]?.jsonPrimitive?.contentOrNull ?: return@mapNotNull null
+
+                    Model(
+                        modelId = id,
+                        displayName = id,
+                    )
+                }
+            }.recoverCatching { e ->
+                when (e) {
+                    is ProviderError -> throw e
+                    is IOException -> throw ProviderError.NetworkError("Failed to connect to OpenAI API", e)
+                    else -> throw ProviderError.UnknownError("Unknown error occurred", e)
+                }
+            }
+        }
+
+    override suspend fun getBalance(providerSetting: ProviderSetting.OpenAI): Result<String> = withContext(Dispatchers.IO) {
+        runCatching {
             val key = keyRoulette.next(providerSetting.apiKey)
+            val url = if (providerSetting.balanceOption.apiPath.startsWith("http")) {
+                providerSetting.balanceOption.apiPath
+            } else {
+                getBaseUrl(providerSetting.baseUrl, providerSetting.balanceOption.apiPath)
+            }
             val request = Request.Builder()
-                .url("${providerSetting.baseUrl}/models")
+                .url(url)
                 .addHeader("Authorization", "Bearer $key")
                 .get()
                 .build()
-
-            val response =
-                client.configureClientWithProxy(providerSetting.proxy).newCall(request).await()
+            val response = client.configureClientWithProxy(providerSetting.proxy).newCall(request).await()
             if (!response.isSuccessful) {
-                error("Failed to get models: ${response.code} ${response.body?.string()}")
+                val body = response.body?.string() ?: ""
+                throw ProviderError.ApiError(response.code, body)
             }
 
-            val bodyStr = response.body?.string() ?: ""
-            val bodyJson = json.parseToJsonElement(bodyStr).jsonObject
-            val data = bodyJson["data"]?.jsonArray ?: return@withContext emptyList()
-
-            data.mapNotNull { modelJson ->
-                val modelObj = modelJson.jsonObject
-                val id = modelObj["id"]?.jsonPrimitive?.contentOrNull ?: return@mapNotNull null
-
-                Model(
-                    modelId = id,
-                    displayName = id,
-                )
+            val bodyStr = response.body.string()
+            val bodyJson = try {
+                json.parseToJsonElement(bodyStr).jsonObject
+            } catch (e: Exception) {
+                throw ProviderError.ParsingError("Failed to parse response body", e)
             }
-        }
 
-    override suspend fun getBalance(providerSetting: ProviderSetting.OpenAI): String = withContext(Dispatchers.IO) {
-        val key = keyRoulette.next(providerSetting.apiKey)
-        val url = if (providerSetting.balanceOption.apiPath.startsWith("http")) {
-            providerSetting.balanceOption.apiPath
-        } else {
-            "${providerSetting.baseUrl}${providerSetting.balanceOption.apiPath}"
-        }
-        val request = Request.Builder()
-            .url(url)
-            .addHeader("Authorization", "Bearer $key")
-            .get()
-            .build()
-        val response = client.configureClientWithProxy(providerSetting.proxy).newCall(request).await()
-        if (!response.isSuccessful) {
-            error("Failed to get balance: ${response.code} ${response.body?.string()}")
-        }
-
-        val bodyStr = response.body.string()
-        val bodyJson = json.parseToJsonElement(bodyStr).jsonObject
-        val value = bodyJson.getByKey(providerSetting.balanceOption.resultPath)
-        val digitalValue = value.toFloatOrNull()
-        if(digitalValue != null) {
-            "%.2f".format(digitalValue)
-        } else {
-            value
+            val value = bodyJson.getByKey(providerSetting.balanceOption.resultPath)
+            val digitalValue = value.toFloatOrNull()
+            if(digitalValue != null) {
+                "%.2f".format(digitalValue)
+            } else {
+                value
+            }
+        }.recoverCatching { e ->
+            when (e) {
+                is ProviderError -> throw e
+                is IOException -> throw ProviderError.NetworkError("Failed to connect to OpenAI API", e)
+                else -> throw ProviderError.UnknownError("Unknown error occurred", e)
+            }
         }
     }
 
@@ -124,73 +161,95 @@ class OpenAIProvider(
         providerSetting: ProviderSetting.OpenAI,
         messages: List<UIMessage>,
         params: TextGenerationParams
-    ): MessageChunk = if (providerSetting.useResponseApi) {
-        responseAPI.generateText(
-            providerSetting = providerSetting,
-            messages = messages,
-            params = params
-        )
-    } else {
-        chatCompletionsAPI.generateText(
-            providerSetting = providerSetting,
-            messages = messages,
-            params = params
-        )
+    ): Result<MessageChunk> = runCatching {
+        if (providerSetting.useResponseApi) {
+            responseAPI.generateText(
+                providerSetting = providerSetting,
+                messages = messages,
+                params = params
+            )
+        } else {
+            chatCompletionsAPI.generateText(
+                providerSetting = providerSetting,
+                messages = messages,
+                params = params
+            )
+        }
+    }.recoverCatching { e ->
+        when (e) {
+            is ProviderError -> throw e
+            is IOException -> throw ProviderError.NetworkError("Failed to connect to OpenAI API", e)
+            else -> throw ProviderError.UnknownError("Unknown error occurred", e)
+        }
     }
 
     override suspend fun generateImage(
         providerSetting: ProviderSetting,
         params: ImageGenerationParams
-    ): ImageGenerationResult = withContext(Dispatchers.IO) {
-        require(providerSetting is ProviderSetting.OpenAI) {
-            "Expected OpenAI provider setting"
-        }
+    ): Result<ImageGenerationResult> = withContext(Dispatchers.IO) {
+        runCatching {
+            require(providerSetting is ProviderSetting.OpenAI) {
+                "Expected OpenAI provider setting"
+            }
 
-        val key = keyRoulette.next(providerSetting.apiKey)
+            val key = keyRoulette.next(providerSetting.apiKey)
 
-        val requestBody = json.encodeToString(
-            buildJsonObject {
-                put("model", params.model.modelId)
-                put("prompt", params.prompt)
-                put("n", params.numOfImages)
-                put(
-                    "size", when (params.aspectRatio) {
-                        ImageAspectRatio.SQUARE -> "1024x1024"
-                        ImageAspectRatio.LANDSCAPE -> "1536x1024"
-                        ImageAspectRatio.PORTRAIT -> "1024x1536"
-                    }
-                )
-            }.mergeCustomBody(params.customBody)
-        )
-
-        val request = Request.Builder()
-            .url("${providerSetting.baseUrl}/images/generations")
-            .headers(params.customHeaders.toHeaders())
-            .addHeader("Authorization", "Bearer $key")
-            .addHeader("Content-Type", "application/json")
-            .post(requestBody.toRequestBody("application/json".toMediaType()))
-            .build()
-
-        val response = client.configureClientWithProxy(providerSetting.proxy).newCall(request).await()
-        if (!response.isSuccessful) {
-            error("Failed to generate image: ${response.code} ${response.body?.string()}")
-        }
-
-        val bodyStr = response.body?.string() ?: ""
-        val bodyJson = json.parseToJsonElement(bodyStr).jsonObject
-        val data = bodyJson["data"]?.jsonArray ?: error("No data in response")
-
-        val items = data.map { imageJson ->
-            val imageObj = imageJson.jsonObject
-            val b64Json = imageObj["b64_json"]?.jsonPrimitive?.contentOrNull
-                ?: error("No b64_json in response")
-
-            ImageGenerationItem(
-                data = b64Json,
-                mimeType = "image/png"
+            val requestBody = json.encodeToString(
+                buildJsonObject {
+                    put("model", params.model.modelId)
+                    put("prompt", params.prompt)
+                    put("n", params.numOfImages)
+                    put(
+                        "size", when (params.aspectRatio) {
+                            ImageAspectRatio.SQUARE -> "1024x1024"
+                            ImageAspectRatio.LANDSCAPE -> "1536x1024"
+                            ImageAspectRatio.PORTRAIT -> "1024x1536"
+                        }
+                    )
+                }.mergeCustomBody(params.customBody)
             )
-        }
 
-        ImageGenerationResult(items = items)
+            val request = Request.Builder()
+                .url(getBaseUrl(providerSetting.baseUrl, IMAGES_GENERATIONS_ENDPOINT))
+                .headers(params.customHeaders.toHeaders())
+                .addHeader("Authorization", "Bearer $key")
+                .addHeader("Content-Type", APPLICATION_JSON)
+                .post(requestBody.toRequestBody(APPLICATION_JSON.toMediaType()))
+                .build()
+
+            val response = client.configureClientWithProxy(providerSetting.proxy).newCall(request).await()
+            if (!response.isSuccessful) {
+                val body = response.body?.string() ?: ""
+                throw ProviderError.ApiError(response.code, body)
+            }
+
+            val bodyStr = response.body?.string() ?: ""
+            val bodyJson = try {
+                json.parseToJsonElement(bodyStr).jsonObject
+            } catch (e: Exception) {
+                throw ProviderError.ParsingError("Failed to parse response body", e)
+            }
+
+            val data = bodyJson["data"]?.jsonArray ?: throw ProviderError.ParsingError("No data in response")
+
+            val items = data.map { imageJson ->
+                val imageObj = imageJson.jsonObject
+                val b64Json = imageObj["b64_json"]?.jsonPrimitive?.contentOrNull
+                    ?: throw ProviderError.ParsingError("No b64_json in response")
+
+                ImageGenerationItem(
+                    data = b64Json,
+                    mimeType = "image/png"
+                )
+            }
+
+            ImageGenerationResult(items = items)
+        }.recoverCatching { e ->
+            when (e) {
+                is ProviderError -> throw e
+                is IOException -> throw ProviderError.NetworkError("Failed to connect to OpenAI API", e)
+                else -> throw ProviderError.UnknownError("Unknown error occurred", e)
+            }
+        }
     }
 }

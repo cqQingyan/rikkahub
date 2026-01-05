@@ -324,7 +324,8 @@ class GenerationHandler(
                 providerSetting = provider,
                 messages = internalMessages,
                 params = params,
-            )
+            ).getOrThrow()
+
             messages = messages.handleMessageChunk(chunk = chunk, model = model)
             chunk.usage?.let { usage ->
                 messages = messages.mapIndexed { index, message ->
@@ -544,7 +545,8 @@ class GenerationHandler(
                         )
                     )
                 ),
-            )
+            ).getOrThrow()
+
             val translatedText = chunk.choices.firstOrNull()?.message?.toText() ?: ""
 
             if (translatedText.isNotBlank()) {

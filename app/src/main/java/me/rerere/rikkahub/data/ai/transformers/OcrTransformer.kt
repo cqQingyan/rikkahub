@@ -94,7 +94,8 @@ object OcrTransformer : InputMessageTransformer, KoinComponent {
             params = TextGenerationParams(
                 model = model,
             ),
-        )
+        ).getOrThrow()
+
         val content = result.choices[0].message?.toText() ?: "[ERROR, OCR failed]"
         Log.i(TAG, "performOcr: $content")
         val ocrResult = """
