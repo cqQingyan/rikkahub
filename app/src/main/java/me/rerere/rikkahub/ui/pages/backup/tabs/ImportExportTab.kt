@@ -9,7 +9,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CircularWavyProgressIndicator
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
@@ -193,7 +193,7 @@ fun ImportExportTab(
                     colors = ListItemDefaults.colors(containerColor = Color.Transparent),
                     leadingContent = {
                         if (isExporting) {
-                            CircularWavyProgressIndicator(
+                            CircularProgressIndicator(
                                 modifier = Modifier.size(24.dp)
                             )
                         } else {
@@ -230,7 +230,7 @@ fun ImportExportTab(
                     colors = ListItemDefaults.colors(containerColor = Color.Transparent),
                     leadingContent = {
                         if (isRestoring) {
-                            CircularWavyProgressIndicator(
+                            CircularProgressIndicator(
                                 modifier = Modifier.size(24.dp)
                             )
                         } else {
@@ -269,7 +269,7 @@ fun ImportExportTab(
                     colors = ListItemDefaults.colors(containerColor = Color.Transparent),
                     leadingContent = {
                         if (isRestoring && importType == "chatbox") {
-                            CircularWavyProgressIndicator(
+                            CircularProgressIndicator(
                                 modifier = Modifier.size(24.dp)
                             )
                         } else {

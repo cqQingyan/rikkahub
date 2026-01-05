@@ -20,7 +20,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
-import androidx.compose.material3.CircularWavyProgressIndicator
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -258,7 +258,7 @@ fun WebDavTab(
                 enabled = !isBackingUp
             ) {
                 if (isBackingUp) {
-                    CircularWavyProgressIndicator(
+                    CircularProgressIndicator(
                         modifier = Modifier.size(18.dp)
                     )
                 } else {
@@ -365,7 +365,7 @@ fun WebDavTab(
                         modifier = Modifier.fillMaxSize(),
                         contentAlignment = Alignment.Center
                     ) {
-                        CircularWavyProgressIndicator()
+                        CircularProgressIndicator()
                     }
                 }
             }
@@ -428,7 +428,7 @@ private fun WebDavBackupItemCard(
                 enabled = !isRestoring
             ) {
                 if (isRestoring) {
-                    CircularWavyProgressIndicator(
+                    CircularProgressIndicator(
                         modifier = Modifier.size(16.dp)
                     )
                     Spacer(Modifier.width(8.dp))
