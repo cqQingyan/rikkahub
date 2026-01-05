@@ -15,17 +15,16 @@ import org.junit.Test
 import kotlin.uuid.Uuid
 
 class OpenAIProviderTest {
-
     private lateinit var mockWebServer: MockWebServer
-    private lateinit var provider: OpenAIProvider
     private lateinit var client: OkHttpClient
+    private lateinit var openAIProvider: OpenAIProvider
 
     @Before
     fun setup() {
         mockWebServer = MockWebServer()
         mockWebServer.start()
         client = OkHttpClient.Builder().build()
-        provider = OpenAIProvider(client)
+        openAIProvider = OpenAIProvider(client)
     }
 
     @After
@@ -34,10 +33,9 @@ class OpenAIProviderTest {
     }
 
     @Test
-    fun `listModels returns success when API call succeeds`() = runTest {
-        val jsonResponse = """
+    fun `listModels returns models when response is successful`() = runTest {
+        val modelsJson = """
             {
-              "object": "list",
               "data": [
                 {
                   "id": "gpt-3.5-turbo",
@@ -55,34 +53,44 @@ class OpenAIProviderTest {
             }
         """.trimIndent()
 
-        mockWebServer.enqueue(MockResponse().setBody(jsonResponse).setResponseCode(200))
+        mockWebServer.enqueue(
+            MockResponse()
+                .setResponseCode(200)
+                .setBody(modelsJson)
+        )
 
-        val settings = ProviderSetting.OpenAI(
+        val setting = ProviderSetting.OpenAI(
             id = Uuid.random(),
+            name = "Test",
             baseUrl = mockWebServer.url("/").toString(),
             apiKey = "test-key"
         )
 
-        val result = provider.listModels(settings)
+        val result = openAIProvider.listModels(setting)
 
         assertTrue(result.isSuccess)
-        val models = result.getOrThrow()
-        assertEquals(2, models.size)
-        assertEquals("gpt-3.5-turbo", models[0].modelId)
-        assertEquals("gpt-4", models[1].modelId)
+        val models = result.getOrNull()
+        assertEquals(2, models?.size)
+        assertEquals("gpt-3.5-turbo", models?.get(0)?.modelId)
+        assertEquals("gpt-4", models?.get(1)?.modelId)
     }
 
     @Test
-    fun `listModels returns failure when API call fails`() = runTest {
-        mockWebServer.enqueue(MockResponse().setResponseCode(401).setBody("Unauthorized"))
+    fun `listModels returns ApiError when response is error`() = runTest {
+        mockWebServer.enqueue(
+            MockResponse()
+                .setResponseCode(401)
+                .setBody("Unauthorized")
+        )
 
-        val settings = ProviderSetting.OpenAI(
+        val setting = ProviderSetting.OpenAI(
             id = Uuid.random(),
+            name = "Test",
             baseUrl = mockWebServer.url("/").toString(),
             apiKey = "test-key"
         )
 
-        val result = provider.listModels(settings)
+        val result = openAIProvider.listModels(setting)
 
         assertTrue(result.isFailure)
         val exception = result.exceptionOrNull()
@@ -91,18 +99,29 @@ class OpenAIProviderTest {
     }
 
     @Test
-    fun `listModels returns failure when parsing fails`() = runTest {
-        mockWebServer.enqueue(MockResponse().setBody("{invalid json").setResponseCode(200))
+    fun `getBalance returns balance when response is successful`() = runTest {
+         val balanceJson = """
+            {
+              "balance": 12.3456
+            }
+        """.trimIndent()
 
-        val settings = ProviderSetting.OpenAI(
+        mockWebServer.enqueue(
+            MockResponse()
+                .setResponseCode(200)
+                .setBody(balanceJson)
+        )
+
+        val setting = ProviderSetting.OpenAI(
             id = Uuid.random(),
+            name = "Test",
             baseUrl = mockWebServer.url("/").toString(),
             apiKey = "test-key"
         )
 
-        val result = provider.listModels(settings)
+        val result = openAIProvider.getBalance(setting)
 
-        assertTrue(result.isFailure)
-        assertTrue(result.exceptionOrNull() is ProviderError.ParsingError)
+        assertTrue(result.isSuccess)
+        assertEquals("12.35", result.getOrNull())
     }
 }

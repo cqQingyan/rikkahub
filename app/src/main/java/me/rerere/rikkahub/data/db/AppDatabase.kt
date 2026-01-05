@@ -10,17 +10,19 @@ import me.rerere.rikkahub.data.db.dao.ConversationDAO
 import me.rerere.rikkahub.data.db.dao.GenMediaDAO
 import me.rerere.rikkahub.data.db.dao.MemoryDAO
 import me.rerere.rikkahub.data.db.dao.MessageNodeDAO
+import me.rerere.rikkahub.data.db.dao.MessageNodeFtsDAO
 import me.rerere.rikkahub.data.db.entity.ConversationEntity
 import me.rerere.rikkahub.data.db.entity.GenMediaEntity
 import me.rerere.rikkahub.data.db.entity.MemoryEntity
 import me.rerere.rikkahub.data.db.entity.MessageNodeEntity
+import me.rerere.rikkahub.data.db.entity.MessageNodeFtsEntity
 import me.rerere.rikkahub.data.db.migrations.Migration_12_13
 import me.rerere.rikkahub.data.db.migrations.Migration_8_9
 import me.rerere.rikkahub.utils.JsonInstant
 
 @Database(
-    entities = [ConversationEntity::class, MemoryEntity::class, GenMediaEntity::class, MessageNodeEntity::class],
-    version = 13,
+    entities = [ConversationEntity::class, MemoryEntity::class, GenMediaEntity::class, MessageNodeEntity::class, MessageNodeFtsEntity::class],
+    version = 14,
     autoMigrations = [
         AutoMigration(from = 1, to = 2),
         AutoMigration(from = 2, to = 3),
@@ -32,6 +34,7 @@ import me.rerere.rikkahub.utils.JsonInstant
         AutoMigration(from = 9, to = 10),
         AutoMigration(from = 10, to = 11),
         AutoMigration(from = 12, to = 13, spec = Migration_12_13::class),
+        AutoMigration(from = 13, to = 14),
     ]
 )
 @TypeConverters(TokenUsageConverter::class)
@@ -43,6 +46,8 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun genMediaDao(): GenMediaDAO
 
     abstract fun messageNodeDao(): MessageNodeDAO
+
+    abstract fun messageNodeFtsDao(): MessageNodeFtsDAO
 }
 
 object TokenUsageConverter {
