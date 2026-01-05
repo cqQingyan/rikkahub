@@ -43,6 +43,8 @@ import me.rerere.rikkahub.data.model.Avatar
 import me.rerere.rikkahub.data.model.Conversation
 import me.rerere.rikkahub.data.model.replaceRegexes
 import me.rerere.rikkahub.data.repository.ConversationRepository
+import me.rerere.rikkahub.domain.usecase.chat.ChatUseCase
+import me.rerere.rikkahub.domain.usecase.chat.ChatUseCaseImpl
 import me.rerere.rikkahub.service.ChatError
 import me.rerere.rikkahub.service.ChatService
 import me.rerere.rikkahub.ui.hooks.writeStringPreference
@@ -66,6 +68,7 @@ class ChatVM(
     private val chatService: ChatService,
     val updateChecker: UpdateChecker,
     private val analytics: FirebaseAnalytics,
+    private val chatUseCase: ChatUseCase = ChatUseCaseImpl(context)
 ) : ViewModel() {
     private val _conversationId: Uuid = Uuid.parse(id)
     val conversation: StateFlow<Conversation> = chatService.getConversationFlow(_conversationId)
@@ -295,21 +298,10 @@ class ChatVM(
             parts
         }
 
-        val newConversation = conversation.value.copy(
-            messageNodes = conversation.value.messageNodes.map { node ->
-                if (!node.messages.any { it.id == messageId }) {
-                    return@map node // 如果这个node没有这个消息，则不修改
-                }
-                node.copy(
-                    messages = node.messages + UIMessage(
-                        role = node.role,
-                        parts = processedParts,
-                    ), selectIndex = node.messages.size
-                )
-            },
-        )
         viewModelScope.launch {
-            chatService.saveConversation(_conversationId, newConversation)
+            chatUseCase.editMessage(conversation.value, messageId, processedParts) {
+                chatService.saveConversation(_conversationId, it)
+            }
         }
     }
 
@@ -327,132 +319,17 @@ class ChatVM(
     }
 
     suspend fun forkMessage(message: UIMessage): Conversation {
-        val node = conversation.value.getMessageNodeByMessage(message)
-        val nodes = conversation.value.messageNodes.subList(
-            0, conversation.value.messageNodes.indexOf(node) + 1
-        ).map { messageNode ->
-            messageNode.copy(
-                id = Uuid.random(),  // 生成新的节点 ID
-                messages = messageNode.messages.map { msg ->
-                    msg.copy(
-                        parts = msg.parts.map { part ->
-                            when (part) {
-                                is UIMessagePart.Image -> {
-                                    val url = part.url
-                                    if (url.startsWith("file:")) {
-                                        val copied = context.createChatFilesByContents(
-                                            listOf(url.toUri())
-                                        ).firstOrNull()
-                                        if (copied != null) part.copy(url = copied.toString()) else part
-                                    } else part
-                                }
-
-                                is UIMessagePart.Document -> {
-                                    val url = part.url
-                                    if (url.startsWith("file:")) {
-                                        val copied = context.createChatFilesByContents(
-                                            listOf(url.toUri())
-                                        ).firstOrNull()
-                                        if (copied != null) part.copy(url = copied.toString()) else part
-                                    } else part
-                                }
-
-                                is UIMessagePart.Video -> {
-                                    val url = part.url
-                                    if (url.startsWith("file:")) {
-                                        val copied = context.createChatFilesByContents(
-                                            listOf(url.toUri())
-                                        ).firstOrNull()
-                                        if (copied != null) part.copy(url = copied.toString()) else part
-                                    } else part
-                                }
-
-                                is UIMessagePart.Audio -> {
-                                    val url = part.url
-                                    if (url.startsWith("file:")) {
-                                        val copied = context.createChatFilesByContents(
-                                            listOf(url.toUri())
-                                        ).firstOrNull()
-                                        if (copied != null) part.copy(url = copied.toString()) else part
-                                    } else part
-                                }
-
-                                else -> part
-                            }
-                        }
-                    )
-                }
-            )
+        return chatUseCase.forkMessage(conversation.value, message) {
+            chatService.saveConversation(it.id, it)
         }
-        val newConversation = Conversation(
-            id = Uuid.random(),
-            assistantId = settings.value.assistantId,
-            messageNodes = nodes
-        )
-        chatService.saveConversation(newConversation.id, newConversation)
-        return newConversation
     }
 
     fun deleteMessage(message: UIMessage) {
-        val relatedMessages = collectRelatedMessages(message)
-        deleteMessageInternal(message)
-        relatedMessages.forEach { deleteMessageInternal(it) }
-        saveConversationAsync()
-    }
-
-    private fun deleteMessageInternal(message: UIMessage) {
-        val conversation = conversation.value
-        val node = conversation.getMessageNodeByMessage(message) ?: return
-        val nodeIndex = conversation.messageNodes.indexOf(node)
-        if (nodeIndex == -1) return
-        val newConversation = if (node.messages.size == 1) {
-            conversation.copy(
-                messageNodes = conversation.messageNodes.filterIndexed { index, _ -> index != nodeIndex })
-        } else {
-            val updatedNodes = conversation.messageNodes.mapNotNull { node ->
-                val newMessages = node.messages.filter { it.id != message.id }
-                if (newMessages.isEmpty()) {
-                    null
-                } else {
-                    val newSelectIndex = if (node.selectIndex >= newMessages.size) {
-                        newMessages.lastIndex
-                    } else {
-                        node.selectIndex
-                    }
-                    node.copy(
-                        messages = newMessages,
-                        selectIndex = newSelectIndex
-                    )
-                }
-            }
-            conversation.copy(messageNodes = updatedNodes)
-        }
         viewModelScope.launch {
-            chatService.saveConversation(_conversationId, newConversation)
-        }
-    }
-
-    private fun collectRelatedMessages(message: UIMessage): List<UIMessage> {
-        val currentMessages = conversation.value.currentMessages
-        val index = currentMessages.indexOf(message)
-        if (index == -1) return emptyList()
-
-        val relatedMessages = hashSetOf<UIMessage>()
-        for (i in index - 1 downTo 0) {
-            if (currentMessages[i].hasPart<UIMessagePart.ToolCall>() || currentMessages[i].hasPart<UIMessagePart.ToolResult>()) {
-                relatedMessages.add(currentMessages[i])
-            } else {
-                break
+            chatUseCase.deleteMessage(conversation.value, message) {
+                chatService.saveConversation(_conversationId, it)
             }
         }
-        for (i in index + 1 until currentMessages.size) {
-            if (currentMessages[i].hasPart<UIMessagePart.ToolCall>() || currentMessages[i].hasPart<UIMessagePart.ToolResult>()) {
-                relatedMessages.add(currentMessages[i])
-            } else {
-                break
-            }
-        }
-        return relatedMessages.toList()
     }
 
     fun regenerateAtMessage(

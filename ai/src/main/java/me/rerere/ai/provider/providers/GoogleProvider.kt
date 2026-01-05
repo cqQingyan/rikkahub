@@ -31,6 +31,7 @@ import me.rerere.ai.provider.Model
 import me.rerere.ai.provider.ModelAbility
 import me.rerere.ai.provider.ModelType
 import me.rerere.ai.provider.Provider
+import me.rerere.ai.provider.ProviderError
 import me.rerere.ai.provider.ProviderSetting
 import me.rerere.ai.provider.TextGenerationParams
 import me.rerere.ai.provider.providers.vertex.ServiceAccountTokenProvider
@@ -65,6 +66,7 @@ import okhttp3.sse.EventSource
 import okhttp3.sse.EventSourceListener
 import okhttp3.sse.EventSources
 import org.apache.commons.text.StringEscapeUtils
+import java.io.IOException
 import kotlin.time.Clock
 import kotlin.uuid.Uuid
 
@@ -105,42 +107,56 @@ class GoogleProvider(private val client: OkHttpClient) : Provider<ProviderSettin
         }
     }
 
-    override suspend fun listModels(providerSetting: ProviderSetting.Google): List<Model> =
+    override suspend fun listModels(providerSetting: ProviderSetting.Google): Result<List<Model>> =
         withContext(Dispatchers.IO) {
-            val url = buildUrl(providerSetting = providerSetting, path = "models?pageSize=100")
-            val request = transformRequest(
-                providerSetting = providerSetting,
-                request = Request.Builder()
-                    .url(url)
-                    .get()
-                    .build()
-            )
-            val response = client.configureClientWithProxy(providerSetting.proxy).newCall(request).await()
-            if (response.isSuccessful) {
-                val body = response.body?.string() ?: error("empty body")
-                Log.d(TAG, "listModels: $body")
-                val bodyObject = json.parseToJsonElement(body).jsonObject
-                val models = bodyObject["models"]?.jsonArray ?: return@withContext emptyList()
-
-                models.mapNotNull {
-                    val modelObject = it.jsonObject
-
-                    // 忽略非chat/embedding模型
-                    val supportedGenerationMethods =
-                        modelObject["supportedGenerationMethods"]!!.jsonArray
-                            .map { method -> method.jsonPrimitive.content }
-                    if ("generateContent" !in supportedGenerationMethods && "embedContent" !in supportedGenerationMethods) {
-                        return@mapNotNull null
+            runCatching {
+                val url = buildUrl(providerSetting = providerSetting, path = "models?pageSize=100")
+                val request = transformRequest(
+                    providerSetting = providerSetting,
+                    request = Request.Builder()
+                        .url(url)
+                        .get()
+                        .build()
+                )
+                val response = client.configureClientWithProxy(providerSetting.proxy).newCall(request).await()
+                if (response.isSuccessful) {
+                    val body = response.body?.string() ?: throw ProviderError.ApiError(response.code, "Empty body")
+                    Log.d(TAG, "listModels: $body")
+                    val bodyObject = try {
+                        json.parseToJsonElement(body).jsonObject
+                    } catch (e: Exception) {
+                        throw ProviderError.ParsingError("Failed to parse response body", e)
                     }
 
-                    Model(
-                        modelId = modelObject["name"]!!.jsonPrimitive.content.substringAfter("/"),
-                        displayName = modelObject["displayName"]!!.jsonPrimitive.content,
-                        type = if ("generateContent" in supportedGenerationMethods) ModelType.CHAT else ModelType.EMBEDDING,
-                    )
+                    val models = bodyObject["models"]?.jsonArray ?: return@withContext Result.success(emptyList())
+
+                    models.mapNotNull {
+                        val modelObject = it.jsonObject
+
+                        // 忽略非chat/embedding模型
+                        val supportedGenerationMethods =
+                            modelObject["supportedGenerationMethods"]!!.jsonArray
+                                .map { method -> method.jsonPrimitive.content }
+                        if ("generateContent" !in supportedGenerationMethods && "embedContent" !in supportedGenerationMethods) {
+                            return@mapNotNull null
+                        }
+
+                        Model(
+                            modelId = modelObject["name"]!!.jsonPrimitive.content.substringAfter("/"),
+                            displayName = modelObject["displayName"]!!.jsonPrimitive.content,
+                            type = if ("generateContent" in supportedGenerationMethods) ModelType.CHAT else ModelType.EMBEDDING,
+                        )
+                    }
+                } else {
+                    val body = response.body?.string() ?: ""
+                    throw ProviderError.ApiError(response.code, body)
                 }
-            } else {
-                emptyList()
+            }.recoverCatching { e ->
+                 when (e) {
+                    is ProviderError -> throw e
+                    is IOException -> throw ProviderError.NetworkError("Failed to connect to Google API", e)
+                    else -> throw ProviderError.UnknownError("Unknown error occurred", e)
+                }
             }
         }
 
@@ -148,56 +164,68 @@ class GoogleProvider(private val client: OkHttpClient) : Provider<ProviderSettin
         providerSetting: ProviderSetting.Google,
         messages: List<UIMessage>,
         params: TextGenerationParams,
-    ): MessageChunk = withContext(Dispatchers.IO) {
-        val requestBody = buildCompletionRequestBody(messages, params)
+    ): Result<MessageChunk> = withContext(Dispatchers.IO) {
+        runCatching {
+            val requestBody = buildCompletionRequestBody(messages, params)
 
-        val url = buildUrl(
-            providerSetting = providerSetting,
-            path = if (providerSetting.vertexAI) {
-                "publishers/google/models/${params.model.modelId}:generateContent"
-            } else {
-                "models/${params.model.modelId}:generateContent"
+            val url = buildUrl(
+                providerSetting = providerSetting,
+                path = if (providerSetting.vertexAI) {
+                    "publishers/google/models/${params.model.modelId}:generateContent"
+                } else {
+                    "models/${params.model.modelId}:generateContent"
+                }
+            )
+
+            val request = transformRequest(
+                providerSetting = providerSetting,
+                request = Request.Builder()
+                    .url(url)
+                    .headers(params.customHeaders.toHeaders())
+                    .post(
+                        json.encodeToString(requestBody).toRequestBody("application/json".toMediaType())
+                    )
+                    .configureReferHeaders(providerSetting.baseUrl)
+                    .build()
+            )
+
+            val response = client.configureClientWithProxy(providerSetting.proxy).newCall(request).await()
+            if (!response.isSuccessful) {
+                throw ProviderError.ApiError(response.code, response.body?.string() ?: "Unknown error")
             }
-        )
 
-        val request = transformRequest(
-            providerSetting = providerSetting,
-            request = Request.Builder()
-                .url(url)
-                .headers(params.customHeaders.toHeaders())
-                .post(
-                    json.encodeToString(requestBody).toRequestBody("application/json".toMediaType())
-                )
-                .configureReferHeaders(providerSetting.baseUrl)
-                .build()
-        )
+            val bodyStr = response.body?.string() ?: ""
+            val bodyJson = try {
+                json.parseToJsonElement(bodyStr).jsonObject
+            } catch (e: Exception) {
+                throw ProviderError.ParsingError("Failed to parse response body", e)
+            }
 
-        val response = client.configureClientWithProxy(providerSetting.proxy).newCall(request).await()
-        if (!response.isSuccessful) {
-            throw Exception("Failed to get response: ${response.code} ${response.body?.string()}")
+            val candidates = bodyJson["candidates"]!!.jsonArray
+            val usage = bodyJson["usageMetadata"]!!.jsonObject
+
+            val messageChunk = MessageChunk(
+                id = Uuid.random().toString(),
+                model = params.model.modelId,
+                choices = candidates.map { candidate ->
+                    UIMessageChoice(
+                        message = parseMessage(candidate.jsonObject),
+                        index = 0,
+                        finishReason = null,
+                        delta = null
+                    )
+                },
+                usage = parseUsageMeta(usage)
+            )
+
+            messageChunk
+        }.recoverCatching { e ->
+             when (e) {
+                is ProviderError -> throw e
+                is IOException -> throw ProviderError.NetworkError("Failed to connect to Google API", e)
+                else -> throw ProviderError.UnknownError("Unknown error occurred", e)
+            }
         }
-
-        val bodyStr = response.body?.string() ?: ""
-        val bodyJson = json.parseToJsonElement(bodyStr).jsonObject
-
-        val candidates = bodyJson["candidates"]!!.jsonArray
-        val usage = bodyJson["usageMetadata"]!!.jsonObject
-
-        val messageChunk = MessageChunk(
-            id = Uuid.random().toString(),
-            model = params.model.modelId,
-            choices = candidates.map { candidate ->
-                UIMessageChoice(
-                    message = parseMessage(candidate.jsonObject),
-                    index = 0,
-                    finishReason = null,
-                    delta = null
-                )
-            },
-            usage = parseUsageMeta(usage)
-        )
-
-        messageChunk
     }
 
     override suspend fun streamText(
@@ -690,70 +718,82 @@ class GoogleProvider(private val client: OkHttpClient) : Provider<ProviderSettin
     override suspend fun generateImage(
         providerSetting: ProviderSetting,
         params: ImageGenerationParams
-    ): ImageGenerationResult = withContext(Dispatchers.IO) {
-        require(providerSetting is ProviderSetting.Google) {
-            "Expected Google provider setting"
-        }
-
-        val requestBody = buildJsonObject {
-            putJsonArray("instances") {
-                add(buildJsonObject {
-                    put("prompt", params.prompt)
-                })
+    ): Result<ImageGenerationResult> = withContext(Dispatchers.IO) {
+        runCatching {
+            require(providerSetting is ProviderSetting.Google) {
+                "Expected Google provider setting"
             }
-            putJsonObject("parameters") {
-                put("sampleCount", params.numOfImages)
-                put("aspectRatio", when(params.aspectRatio) {
-                    ImageAspectRatio.SQUARE -> "1:1"
-                    ImageAspectRatio.LANDSCAPE -> "16:9"
-                    ImageAspectRatio.PORTRAIT -> "9:16"
-                })
+
+            val requestBody = buildJsonObject {
+                putJsonArray("instances") {
+                    add(buildJsonObject {
+                        put("prompt", params.prompt)
+                    })
+                }
+                putJsonObject("parameters") {
+                    put("sampleCount", params.numOfImages)
+                    put("aspectRatio", when(params.aspectRatio) {
+                        ImageAspectRatio.SQUARE -> "1:1"
+                        ImageAspectRatio.LANDSCAPE -> "16:9"
+                        ImageAspectRatio.PORTRAIT -> "9:16"
+                    })
+                }
+            }.mergeCustomBody(params.customBody)
+
+            val url = buildUrl(
+                providerSetting = providerSetting,
+                path = if (providerSetting.vertexAI) {
+                    "publishers/google/models/${params.model.modelId}:predict"
+                } else {
+                    "models/${params.model.modelId}:predict"
+                }
+            )
+
+            val request = transformRequest(
+                providerSetting = providerSetting,
+                request = Request.Builder()
+                    .url(url)
+                    .headers(params.customHeaders.toHeaders())
+                    .post(
+                        json.encodeToString(requestBody).toRequestBody("application/json".toMediaType())
+                    )
+                    .configureReferHeaders(providerSetting.baseUrl)
+                    .build()
+            )
+
+            val response = client.configureClientWithProxy(providerSetting.proxy).newCall(request).await()
+            if (!response.isSuccessful) {
+                throw ProviderError.ApiError(response.code, response.body?.string() ?: "Unknown error")
             }
-        }.mergeCustomBody(params.customBody)
 
-        val url = buildUrl(
-            providerSetting = providerSetting,
-            path = if (providerSetting.vertexAI) {
-                "publishers/google/models/${params.model.modelId}:predict"
-            } else {
-                "models/${params.model.modelId}:predict"
+            val bodyStr = response.body?.string() ?: ""
+            val bodyJson = try {
+                json.parseToJsonElement(bodyStr).jsonObject
+            } catch (e: Exception) {
+                throw ProviderError.ParsingError("Failed to parse response body", e)
             }
-        )
 
-        val request = transformRequest(
-            providerSetting = providerSetting,
-            request = Request.Builder()
-                .url(url)
-                .headers(params.customHeaders.toHeaders())
-                .post(
-                    json.encodeToString(requestBody).toRequestBody("application/json".toMediaType())
-                )
-                .configureReferHeaders(providerSetting.baseUrl)
-                .build()
-        )
+            val predictions =  bodyJson["predictions"]?.jsonArray ?: throw ProviderError.ParsingError("No predictions in response")
 
-        val response = client.configureClientWithProxy(providerSetting.proxy).newCall(request).await()
-        if (!response.isSuccessful) {
-            error("Failed to generate image: ${response.code} ${response.body.string()}")
+            val items = predictions.mapNotNull { prediction ->
+                val predictionObj = prediction.jsonObject
+                val bytesBase64Encoded = predictionObj["bytesBase64Encoded"]?.jsonPrimitive?.contentOrNull
+
+                if (bytesBase64Encoded != null) {
+                    ImageGenerationItem(
+                        data = bytesBase64Encoded,
+                        mimeType = "image/png"
+                    )
+                } else null
+            }
+
+            ImageGenerationResult(items = items)
+        }.recoverCatching { e ->
+             when (e) {
+                is ProviderError -> throw e
+                is IOException -> throw ProviderError.NetworkError("Failed to connect to Google API", e)
+                else -> throw ProviderError.UnknownError("Unknown error occurred", e)
+            }
         }
-
-        val bodyStr = response.body.string()
-        val bodyJson = json.parseToJsonElement(bodyStr).jsonObject
-
-        val predictions =  bodyJson["predictions"]?.jsonArray ?: error("No predictions in response")
-
-        val items = predictions.mapNotNull { prediction ->
-            val predictionObj = prediction.jsonObject
-            val bytesBase64Encoded = predictionObj["bytesBase64Encoded"]?.jsonPrimitive?.contentOrNull
-
-            if (bytesBase64Encoded != null) {
-                ImageGenerationItem(
-                    data = bytesBase64Encoded,
-                    mimeType = "image/png"
-                )
-            } else null
-        }
-
-        ImageGenerationResult(items = items)
     }
 }

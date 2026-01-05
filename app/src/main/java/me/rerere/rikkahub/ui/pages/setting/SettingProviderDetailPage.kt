@@ -570,7 +570,7 @@ private fun ConnectionTester(
                                     params = TextGenerationParams(
                                         model = model!!,
                                     )
-                                )
+                                ).getOrThrow()
                                 testState = UiState.Success("Success")
                             }.onFailure {
                                 testState = UiState.Error(it)
@@ -596,6 +596,7 @@ private fun ModelList(
             println("loading models...")
             value = providerManager.getProviderByType(providerSetting)
                 .listModels(providerSetting)
+                .getOrDefault(emptyList()) // Handle Result
                 .sortedBy { it.modelId }
                 .toList()
         }.onFailure {
