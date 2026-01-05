@@ -71,6 +71,10 @@ val dataSourceModule = module {
     }
 
     single {
+        get<AppDatabase>().messageNodeFtsDao()
+    }
+
+    single {
         GenerationHandler(
             context = get(),
             providerManager = get(),

@@ -183,7 +183,7 @@ class RouteActivity : ComponentActivity() {
                         slideOutHorizontally(targetOffsetX = { it }) + scaleOut(targetScale = 0.75f) + fadeOut()
                     }
                 ) {
-                    composable<Screen.Chat>(
+                    composableWrapper<Screen.Chat>(
                         enterTransition = { fadeIn() },
                         exitTransition = { fadeOut() },
                     ) { backStackEntry ->
@@ -195,7 +195,7 @@ class RouteActivity : ComponentActivity() {
                         )
                     }
 
-                    composable<Screen.History> {
+                    composableWrapper<Screen.History> {
                         HistoryPage()
                     }
 
